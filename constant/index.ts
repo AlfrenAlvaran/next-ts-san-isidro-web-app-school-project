@@ -1,0 +1,144 @@
+import { NavLink } from "./types";
+
+export const navLinks: NavLink[] = [
+  {
+    label: "Home",
+    href: "/",
+  },
+  {
+    label: "About",
+    href: "/about",
+  },
+
+  {
+    label: "offers",
+    href: "#",
+    children: [
+      {
+        label: "Barangay Clearance",
+        href: "/barangay-clearance",
+      },
+      { label: "Indigency Certificate", href: "/indigency-certificate" },
+      { label: "Business Permit", href: "/barangay-permit" },
+      { label: "Residency Certificate", href: "/residency-certificate" },
+      { label: "Good Moral Certificate", href: "/good-moral-certificate" },
+    ],
+  },
+  {
+    label: "Services",
+    href: "/services",
+  },
+];
+
+
+// about
+import {
+  EyeIcon,
+  GroupIcon,
+  HandIcon,
+  IconProps,
+  ShieldIcon,
+} from "@/components/icons";
+import { ComponentType } from "react";
+
+export type ValueChild = {
+  title: string;
+  desc: string | null;
+  icon: ComponentType<IconProps>;
+};
+
+export const values: ValueChild[] = [
+  {
+    title: "Transparency",
+    desc: "Every peso and every decision is open to the community we serve.",
+    icon: EyeIcon,
+  },
+  {
+    title: "Accessibility",
+    desc: "Services should be within reach of every resident, regardless of schedule or circumstance.",
+    icon: HandIcon,
+  },
+  {
+    title: "Accountability",
+    desc: "Officials answer directly to the people who elected them.",
+    icon: ShieldIcon,
+  },
+  {
+    title: "Bayanihan",
+    desc: "A community that carries its burdens, and its progress, together.",
+    icon: GroupIcon,
+  },
+];
+
+export type TimeLineProps = {
+  year: string;
+  title: string;
+  desc: string;
+};
+
+export const timeLine: TimeLineProps[] = [
+  {
+    year: "1948",
+    title: "Barangay Founded",
+    desc: "San Isidro was formally established as a barrio of the City of Manila, named after its patron saint of laborers and farmers.",
+  },
+  {
+    year: "1975",
+    title: "First Barangay Hall Built",
+    desc: "A permanent community hall was constructed along Rizal Street, replacing the original wooden meeting house.",
+  },
+  {
+    year: "1991",
+    title: "Local Government Code",
+    desc: "San Isidro was reorganized under the Local Government Code of 1991, formalizing its councils and elected positions.",
+  },
+  {
+    year: "2018",
+    title: "Digital Records Initiative",
+    desc: "The barangay began digitizing resident records, reducing average document processing time significantly.",
+  },
+  {
+    year: "2024",
+    title: "Online Services Launched",
+    desc: "Residents gained the ability to request certificates and track applications online, from anywhere.",
+  },
+];
+
+export type DepartmentProps = {
+  name: string;
+  role: string;
+};
+
+export const departments: DepartmentProps[] = [
+  {
+    name: "Office of the Barangay Captain",
+    role: "Executive leadership & external affairs",
+  },
+  {
+    name: "Committee on Peace and Order",
+    role: "Public safety & dispute mediation",
+  },
+  {
+    name: "Committee on Health",
+    role: "Barangay health station & wellness programs",
+  },
+  {
+    name: "Committee on Education",
+    role: "Scholarships & youth learning support",
+  },
+  {
+    name: "Committee on Infrastructure",
+    role: "Roads, drainage & public facilities",
+  },
+  { name: "Committee on Women and Family", role: "VAWC desk & family welfare" },
+  {
+    name: "Sangguniang Kabataan",
+    role: "Youth council & youth development programs",
+  },
+  {
+    name: "Barangay Treasury",
+    role: "Budget, disbursements & financial reports",
+  },
+];
+
+
