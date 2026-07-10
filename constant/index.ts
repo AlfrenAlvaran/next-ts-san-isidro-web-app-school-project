@@ -142,3 +142,46 @@ export const departments: DepartmentProps[] = [
 ];
 
 
+
+import React from "react";
+
+export type RevealChild = {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+};
+
+export type StatItemProps = {
+  value: string;
+  label: string;
+  visible: boolean;
+};
+
+export type UseCountUpProps = {
+  target: string;
+  visible: boolean;
+  duration?: number;
+};
+
+export type ServiceCardProps = {
+  title: string;
+  description: string;
+  tag: string | null;
+  icon: React.ReactNode;
+};
+
+export type StepCardProps = {
+  step: string;
+  title: string;
+  description: string;
+};
+
+export type NewsCardProps = {
+  category: string;
+  date: string;
+  title: string;
+  desc: string;
+};
+
+
+

@@ -10,6 +10,19 @@ export type NavLink = {
 };
 
 
+// hero section
+export type HeroProps = {
+   minHeight?: string;         
+  eyebrow?: string;            
+  title: React.ReactNode;      
+  description?: React.ReactNode;
+  maxWidth?: string;           
+  actions?: React.ReactNode;
+  showScrollCue?: boolean;   
+  footer?: React.ReactNode;    
+  className?: string;          
+}
+
 
 // models
 export type UserRole = "resident" | "admin" | "superadmin" 
