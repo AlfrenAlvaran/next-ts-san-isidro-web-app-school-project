@@ -1,3 +1,4 @@
+'use client'
 import { RevealChild } from "@/constant";
 import { useInView } from "@/hooks";
 import React, { useEffect, useRef, useState } from "react";
