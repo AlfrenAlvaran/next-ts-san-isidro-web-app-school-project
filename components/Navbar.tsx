@@ -82,9 +82,11 @@ const Navbar = () => {
   const isLinkActive = (href: string) =>
     pathname === href || (href !== "/" && pathname?.startsWith(href));
 
+
+
   const initials = (userName || userEmail || "U")
     .split(" ")
-    .map((s) => s[0])
+    .map((s: string) => s[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
