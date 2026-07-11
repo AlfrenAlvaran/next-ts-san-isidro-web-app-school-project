@@ -215,7 +215,7 @@ const page = () => {
             </div>
 
             <Reveal delay={100}>
-              <div className="relative lg:h-[420px] flex items-center justify-center">
+              <div className="relative lg:h-105 flex items-center justify-center">
                 <div className="absolute inset-0 bg-[#0F172A] rounded-2xl rotate-3 opacity-60" />
                 <div className="absolute inset-2 bg-[#B8860B]/20 border border-[#B8860B]/30 rounded-2xl -rotate-1" />
                 <div className="relative bg-white rounded-2xl p-8 shadow-xl w-full mx-4">

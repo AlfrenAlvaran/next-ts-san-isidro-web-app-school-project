@@ -2,10 +2,11 @@ import { StatItemProps } from "@/constant";
 import { useCountUp } from "@/hooks";
 
 const StatItem = ({ value, label, visible }: StatItemProps) => {
-    const display = useCountUp({
-        target: value,
-        visible
-    })
+  const display = useCountUp(0, visible, {
+    target: value,
+    visible,
+  });
+
   return (
     <div className="px-6 py-7">
       <p className="text-2xl font-extrabold text-white tracking-tight tabular-nums">

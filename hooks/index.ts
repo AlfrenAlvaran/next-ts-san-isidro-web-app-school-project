@@ -34,10 +34,8 @@ export function useInView(threshold = 0.15) {
   return [ref, visible] as const;
 }
 
-export function useCountUp({
-  target,
-  visible,
-  duration = 1400,
+export function useCountUp(length: number, statsVisible: boolean, {
+    target, visible, duration = 1400,
 }: UseCountUpProps) {
   const [count, setCount] = useState<string>("");
 
