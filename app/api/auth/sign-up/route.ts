@@ -4,6 +4,7 @@ import { connection } from "@/lib/database";
 import UserModel from "@/models/UserModel";
 import cloudinary from "@/lib/cloudinary";
 import crypto from "crypto";
+import { sendVerificationEmail } from "@/lib/sendVerificationEmail";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
@@ -87,6 +88,11 @@ export async function POST(req: NextRequest) {
       verificationToken,
       verificationTokenExpiry,
     });
+    try {
+      await sendVerificationEmail(user.email, user.fullName, verificationToken);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+    }
     return NextResponse.json(
       {
         message:

@@ -111,6 +111,7 @@ const AuthForm = ({ type }: { type: string }) => {
     defaultValues: {
       fullName: "",
       email: "",
+      phone: "",
       password: "",
       confirmPassword: "",
       agreeTerms: false,
@@ -142,7 +143,7 @@ const AuthForm = ({ type }: { type: string }) => {
 
         toast.success("Sign in successfully");
         router.push(callbackUrl);
-        router.refresh()
+        router.refresh();
         return;
       }
 
@@ -175,7 +176,7 @@ const AuthForm = ({ type }: { type: string }) => {
           headers: { "Content-Type": "multipart/form-data" },
         });
         toast.success(res.data.message || "Account created successfully!");
-        router.push("/sign-in");
+        router.push("/verify-email");
       }
     } catch (error: any) {
       const message = error.response?.data?.error || "Something went wrong.";
