@@ -1,10 +1,12 @@
 "use client";
+import CTA from "@/components/CTA";
 import Hero from "@/components/Hero";
+import { NewsCard } from "@/components/NewCard";
 import Reveal from "@/components/Reveal";
 import ServiceCard from "@/components/ServiceCard";
 import StatItem from "@/components/StatItem";
 import { StepCard } from "@/components/StepCard";
-import { barangayFacts, milestone, services, stats, steps } from "@/data";
+import { barangayFacts, milestone, news, services, stats, steps } from "@/data";
 import { useInView } from "@/hooks";
 import Image from "next/image";
 import Link from "next/link";
@@ -213,48 +215,98 @@ const page = () => {
             </div>
 
             <Reveal delay={100}>
-            <div className="relative lg:h-[420px] flex items-center justify-center">
-              <div className="absolute inset-0 bg-[#0F172A] rounded-2xl rotate-3 opacity-60" />
-              <div className="absolute inset-2 bg-[#B8860B]/20 border border-[#B8860B]/30 rounded-2xl -rotate-1" />
-              <div className="relative bg-white rounded-2xl p-8 shadow-xl w-full mx-4">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
-                    <Image
-                      src="/logo.jpg"
-                      alt="Barangay San Isidro Logo"
-                      fill
-                      sizes="40px"
-                      className="object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">
-                      Barangay San Isidro
-                    </p>
-                    <p className="text-slate-400 text-[11px]">
-                      Est. 1820s · Province of Rizal
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {barangayFacts.map((r) => (
-                    <div
-                      key={r.label}
-                      className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
-                    >
-                      <span className="text-slate-500 text-xs">{r.label}</span>
-                      <span className="text-slate-900 text-xs font-semibold">
-                        {r.value}
-                      </span>
+              <div className="relative lg:h-[420px] flex items-center justify-center">
+                <div className="absolute inset-0 bg-[#0F172A] rounded-2xl rotate-3 opacity-60" />
+                <div className="absolute inset-2 bg-[#B8860B]/20 border border-[#B8860B]/30 rounded-2xl -rotate-1" />
+                <div className="relative bg-white rounded-2xl p-8 shadow-xl w-full mx-4">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                      <Image
+                        src="/logo.jpg"
+                        alt="Barangay San Isidro Logo"
+                        fill
+                        sizes="40px"
+                        className="object-cover"
+                      />
                     </div>
-                  ))}
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">
+                        Barangay San Isidro
+                      </p>
+                      <p className="text-slate-400 text-[11px]">
+                        Est. 1820s · Province of Rizal
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {barangayFacts.map((r) => (
+                      <div
+                        key={r.label}
+                        className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
+                      >
+                        <span className="text-slate-500 text-xs">
+                          {r.label}
+                        </span>
+                        <span className="text-slate-900 text-xs font-semibold">
+                          {r.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </Reveal>
+            </Reveal>
           </div>
         </div>
       </section>
+
+  <section className="py-20 sm:py-24 bg-white">
+  <div className="max-w-6xl mx-auto px-6 sm:px-8">
+    <div className="mb-14">
+      <Reveal className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 w-full">
+        <div className="flex-1">
+          <p className="text-[#B8860B] text-xs font-semibold tracking-[0.2em] uppercase mb-3">
+            Stay informed
+          </p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Latest Announcements
+          </h2>
+        </div>
+
+        <div>
+          <Link
+            href="/announcements"
+            className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-1"
+          >
+            All announcements
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17 8l4 4m0 0l-4 4m4-4H3"
+              />
+            </svg>
+          </Link>
+        </div>
+      </Reveal>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {news.map((n, i) => (
+        <Reveal key={n.title} delay={i * 80}>
+          <NewsCard {...n} />
+        </Reveal>
+      ))}
+    </div>
+  </div>
+</section>
+
+      <CTA />
     </div>
   );
 };

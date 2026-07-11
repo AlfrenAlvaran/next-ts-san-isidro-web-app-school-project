@@ -1,3 +1,4 @@
+import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import React from "react";
 
@@ -11,6 +12,7 @@ export default function GuestLayout({
       <div className="h-16">
         <Navbar />
         {children}
+        <Footer />
       </div>
     </>
   );

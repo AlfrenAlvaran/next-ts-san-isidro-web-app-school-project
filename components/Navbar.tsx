@@ -74,7 +74,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <Image src={"/logo.jpg"} alt="logo" width={50} height={50} />
+            <Image src={"/logo.jpg"} alt="logo" width={50} height={50} priority />
             <div>
               <div className="flex items-baseline gap-1.5">
                 <span className="black-text text-15 tracking-tight leading-none">
