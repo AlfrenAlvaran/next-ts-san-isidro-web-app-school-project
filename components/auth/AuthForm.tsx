@@ -9,7 +9,7 @@ import { passwordStrength, StrengthMeter } from "./auth-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { toast } from "sonner";
 import axios from "axios";
 const MAX_FILE_SIZE_MB = 5;
@@ -142,7 +142,14 @@ const AuthForm = ({ type }: { type: string }) => {
         }
 
         toast.success("Sign in successfully");
-        router.push(callbackUrl);
+        const session = await getSession()
+        const role = session?.user?.role;
+
+        const roleRedirects: Record<string, string> = {
+          admin: '/dashboard',
+          resident: '/home',
+        }
+        router.push(roleRedirects[role as string] || callbackUrl);
         router.refresh();
         return;
       }

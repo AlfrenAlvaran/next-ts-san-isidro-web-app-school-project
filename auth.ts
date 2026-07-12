@@ -4,13 +4,16 @@ import { authConfig } from "./auth.config";
 import { authFormSchema } from "./lib/utils";
 import { connection } from "./lib/database";
 import UserModel from "./models/UserModel";
+import { UserRole } from "./constant/types";
 
 class UnverifiedError extends CredentialsSignin {
   code = "unverified";
+  static type = "unverified";
 }
 
 class UnapprovedError extends CredentialsSignin {
   code = "unapproved";
+  static type = "unapproved";
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -24,17 +27,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         const parsed = authFormSchema("sign-in").safeParse(credentials);
-        if (!parsed.success) return null;
+        if (!parsed.success) {
+          console.log("Schema validation failed: ", parsed.error.flatten());
+          return null;
+        }
 
         const { email, password } = parsed.data;
 
         await connection();
 
         const user = await UserModel.findOne({ email }).select("+password");
-        if (!user) return null;
+        if (!user) {
+          console.log("❌ no user found for:", email);
+          return null;
+        }
 
         const isValid = await user.comparePassword(password);
-        if (!isValid) return null;
+        if (!isValid) {
+          console.log("❌ invalid password for:", email);
+          return null;
+        }
 
         if (!user.isVerified) {
           throw new UnverifiedError();
@@ -65,8 +77,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
+        session.user.id = token.id as string;
+        session.user.role = token.role as UserRole;
       }
       return session;
     },
