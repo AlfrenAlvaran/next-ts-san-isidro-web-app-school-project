@@ -340,7 +340,7 @@ const Page = () => {
             className="fixed inset-0 bg-slate-900/40 z-40 backdrop-blur-[1px] animate-in fade-in duration-150"
             onClick={() => setSelected(null)}
           />
-          <div className="fixed right-0 top-0 h-full w-full sm:w-[420px] bg-white z-50 shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
+          <div className="fixed right-0 top-0 h-full w-full sm:w-105 bg-white z-50 shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
             <div className="p-6 border-b border-slate-100 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">

@@ -217,7 +217,7 @@ export default function RequestPage() {
             </button>
 
             <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-[#0F172A] flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-[#0F172A] flex items-center justify-center shrink-0">
                 <selectedType.icon className="w-4.5 h-4.5 text-[#B45309]" />
               </div>
               <div>
