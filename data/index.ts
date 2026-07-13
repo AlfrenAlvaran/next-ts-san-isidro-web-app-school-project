@@ -372,6 +372,7 @@ export const requirements: RequirementProps[] = [
 
 export type RequestStatus =
   | "submitted"
+  | "pending"
   | "in_review"
   | "approved"
   | "released"

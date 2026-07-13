@@ -43,7 +43,7 @@ export function MiniProgress({ stage, status }: StageProps) {
   return (
     <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden w-full">
       <div
-        className="h-full rounded-full bg-gradient-to-r from-[#0F172A] to-[#B8860B] transition-all duration-500"
+        className="h-full rounded-full bg-linear-to-r from-[#0F172A] to-[#B8860B] transition-all duration-500"
         style={{ width: `${pct}%` }}
       />
     </div>

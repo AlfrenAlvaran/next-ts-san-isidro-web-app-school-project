@@ -121,7 +121,7 @@ export default function RequestPage() {
                 </span>
               </div>
               {i < stepOrder.length - 1 && (
-                <div className="flex-1 h-[2px] mx-3 rounded-full bg-slate-100 overflow-hidden">
+                <div className="flex-1 h-0.5 mx-3 rounded-full bg-slate-100 overflow-hidden">
                   <div
                     className="h-full bg-[#0F172A] transition-all duration-500 ease-out"
                     style={{ width: i < currentIndex ? "100%" : "0%" }}

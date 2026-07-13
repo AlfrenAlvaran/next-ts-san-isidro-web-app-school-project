@@ -36,4 +36,4 @@ const RequestSchema = new Schema<IRequest>(
   { timestamps: true }
 );
 
-export default models.RequestModel || model<IRequest>("Request", RequestSchema);
+export default models.Request || model<IRequest>("Request", RequestSchema);
