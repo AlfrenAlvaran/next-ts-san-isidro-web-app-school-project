@@ -2,6 +2,7 @@
 import useSWR from "swr";
 import axios from "axios";
 import { toast } from "sonner";
+import { useMemo } from "react";
 import type { RequestStatus } from "@/data";
 
 export type RequestItem = {
@@ -51,11 +52,32 @@ export function useRequests() {
     }
   };
 
+  const list = requests ?? [];
+
+  // Adjust "pending" below if your RequestStatus union spells it differently
+  // (e.g. "Pending" vs "pending") — this just needs to match one member of it.
+  const pendingCount = useMemo(
+    () => list.filter((r) => r.status === ("pending" as RequestStatus)).length,
+    [list]
+  );
+
+  // Generic breakdown so the UI can show a badge per status without
+  // hardcoding every value in RequestStatus here.
+  const countsByStatus = useMemo(() => {
+    return list.reduce<Record<string, number>>((acc, r) => {
+      const key = String(r.status);
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+  }, [list]);
+
   return {
-    requests: requests ?? [],
+    requests: list,
     loading: isLoading,
     error,
     createRequest,
     mutate,
+    pendingCount,
+    countsByStatus,
   };
 }

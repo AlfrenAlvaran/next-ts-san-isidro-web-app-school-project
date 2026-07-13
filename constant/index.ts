@@ -38,6 +38,7 @@ import {
   IconProps,
   ShieldIcon,
 } from "@/components/icons";
+import { FileText, LayoutGrid } from "lucide-react";
 import { ComponentType } from "react";
 
 export type ValueChild = {
@@ -200,6 +201,28 @@ export interface MemberModalProps {
   mode: string;
   member?: Member | null;
   onClose: () => void;
-  onAdd: (payload: MemberFormPayload) => void
-  onEdit: (payload: Member) => void
+  onAdd: (payload: MemberFormPayload) => void;
+  onEdit: (payload: Member) => void;
 }
+
+export type SidebarAdminChild = {
+  href: string;
+  label: string;
+  icon: ComponentType<IconProps>;
+  badge?: boolean
+};
+
+// Sidebar admin
+export const SidebarAdmin: SidebarAdminChild[] = [
+  {
+    href: "/dashboard",
+    label: "Overview",
+    icon: LayoutGrid,
+  },
+  {
+    href: '/certificate',
+    label: "Certificate Request",
+    icon: FileText,
+    badge: true
+  }
+];

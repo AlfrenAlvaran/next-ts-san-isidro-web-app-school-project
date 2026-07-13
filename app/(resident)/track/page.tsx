@@ -116,7 +116,7 @@ function StageTracker({
             </div>
             {i < STAGES.length - 1 && (
               <div
-                className={`h-[2px] flex-1 mx-1 rounded-full transition-colors ${
+                className={`h-0.5 flex-1 mx-1 rounded-full transition-colors ${
                   !isRejected && i < stage ? "bg-[#0F172A]" : "bg-slate-200"
                 }`}
               />
