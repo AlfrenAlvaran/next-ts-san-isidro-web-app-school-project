@@ -246,7 +246,6 @@ export const news: NewsCardProps[] = [
   },
 ];
 
-
 export type ValueChild = {
   title: string;
   desc: string | null;
@@ -352,8 +351,6 @@ export type RequirementProps = {
   desc: string;
 };
 
-
-
 export const requirements: RequirementProps[] = [
   {
     title: "Valid Government ID",
@@ -372,3 +369,16 @@ export const requirements: RequirementProps[] = [
     desc: "Most documents carry a minimal fee, payable in cash at the Barangay Hall or through available payment methods.",
   },
 ];
+
+export type RequestStatus =
+  | "submitted"
+  | "in_review"
+  | "approved"
+  | "released"
+  | "rejected";
+export const STAGES = [
+  "Submitted",
+  "In Review",
+  "Approved",
+  "Released",
+] as const;

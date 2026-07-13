@@ -30,7 +30,6 @@ export const navLinks: NavLink[] = [
   },
 ];
 
-
 // about
 import {
   EyeIcon,
@@ -141,8 +140,6 @@ export const departments: DepartmentProps[] = [
   },
 ];
 
-
-
 import React from "react";
 
 export type RevealChild = {
@@ -183,5 +180,26 @@ export type NewsCardProps = {
   desc: string;
 };
 
+// House Hold Client
 
+export interface Member {
+  id: string;
+  name: string;
+  relation: string;
+  age: number;
+}
 
+// Data shape submitted from the form
+export interface MemberFormPayload {
+  name: string;
+  relation: string;
+  age: number;
+}
+
+export interface MemberModalProps {
+  mode: string;
+  member?: Member | null;
+  onClose: () => void;
+  onAdd: (payload: MemberFormPayload) => void
+  onEdit: (payload: Member) => void
+}

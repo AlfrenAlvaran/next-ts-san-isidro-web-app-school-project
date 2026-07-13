@@ -55,3 +55,5 @@ export const authFormSchema = (type: string) =>
     });
 
 export type AuthFormData = z.infer<ReturnType<typeof authFormSchema>>;
+
+
