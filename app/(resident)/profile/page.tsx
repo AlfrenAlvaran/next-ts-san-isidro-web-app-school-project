@@ -189,17 +189,65 @@ const ProfilePage = () => {
             onSave={margeSave}
           />
 
-           <RecordSection
+          <RecordSection
             icon={ShieldAlert}
             title="Emergency contact"
             subtitle="Contacted only in urgent or emergency situations"
             fields={[
-              { key: "emergencyName", label: "Full name", value: profile.emergencyName },
-              { key: "emergencyRelation", label: "Relation", value: profile.emergencyRelation },
-              { key: "emergencyContact", label: "Contact number", value: profile.emergencyContact, wide: true },
+              {
+                key: "emergencyName",
+                label: "Full name",
+                value: profile.emergencyName,
+              },
+              {
+                key: "emergencyRelation",
+                label: "Relation",
+                value: profile.emergencyRelation,
+              },
+              {
+                key: "emergencyContact",
+                label: "Contact number",
+                value: profile.emergencyContact,
+                wide: true,
+              },
             ]}
             onSave={margeSave}
           />
+
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#B8860B]" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  Household reference
+                </h3>
+              </div>
+              <span className="text-[11px] text-slate-400">
+                {profile.houseHoldMembers?.length ?? 0} members ·{" "}
+                {profile.householdNo}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {profile?.houseHoldMembers?.map((m, i) => (
+                <div key={`${m.name}-${i}`} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-[11px] font-bold shrink-0">
+                    {m.name.split(",")[0].slice(0, 1)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-slate-800 truncate">
+                      {m.name}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {m.relation} · {m.age} y/o
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+             <p className="text-[11px] text-slate-400 mt-4 pt-4 border-t border-slate-100">
+              To add or remove household members, use "Add household member" on your dashboard.
+            </p>
+          </div>
         </div>
       </div>
     </main>

@@ -27,6 +27,10 @@ const Page = () => {
     return <Loading />;
   }
 
+  // Narrowed, stable reference for use inside the closures below —
+  // TS can't carry the `!profile` guard's narrowing into nested functions.
+  const currentProfile = profile;
+
   function openAddMember() {
     setModalState({ mode: "create" });
   }
@@ -59,8 +63,8 @@ const Page = () => {
     const { member } = await res.json();
 
     saveProfile({
-      ...profile,
-      houseHoldMembers: [...(profile.houseHoldMembers ?? []), member],
+      ...currentProfile,
+      houseHoldMembers: [...(currentProfile.houseHoldMembers ?? []), member],
     });
   }
 
@@ -82,8 +86,8 @@ const Page = () => {
     }
 
     saveProfile({
-      ...profile,
-      houseHoldMembers: profile.houseHoldMembers.map((m) =>
+      ...currentProfile,
+      houseHoldMembers: currentProfile.houseHoldMembers.map((m) =>
         m.id === updated.id ? updated : m
       ),
     });
@@ -104,8 +108,8 @@ const Page = () => {
     }
 
     saveProfile({
-      ...profile,
-      houseHoldMembers: profile.houseHoldMembers.filter((m) => m.id !== id),
+      ...currentProfile,
+      houseHoldMembers: currentProfile.houseHoldMembers.filter((m) => m.id !== id),
     });
   }
 
@@ -128,11 +132,11 @@ const Page = () => {
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
             <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                {profile.fullName.split(",").reverse().join(" ").trim()}
+                {currentProfile.fullName.split(",").reverse().join(" ").trim()}
               </h1>
               <p className="text-slate-400 text-sm mt-1.5 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" /> {profile.purok} · Household{" "}
-                {profile.householdNo ?? ""}
+                <MapPin className="w-3.5 h-3.5" /> {currentProfile.purok} · Household{" "}
+                {currentProfile.householdNo ?? ""}
               </p>
             </div>
           </div>
@@ -172,7 +176,7 @@ const Page = () => {
             </div>
 
             <div className="space-y-3">
-              {profile.houseHoldMembers?.map((m: HouseholdMember) => (
+              {currentProfile.houseHoldMembers?.map((m: HouseholdMember) => (
                 <div key={m.id} className="flex items-center gap-3 group">
                   <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-[11px] font-bold shrink-0">
                     {m.name.split(",")[0].slice(0, 1)}

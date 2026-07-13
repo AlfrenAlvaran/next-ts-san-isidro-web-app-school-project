@@ -1,65 +1,24 @@
-// app/request/page.tsx
 "use client";
 
 import { useState } from "react";
 import {
-  FileText,
-  Shield,
-  Home,
-  Briefcase,
-  Users,
-  Stamp,
   Clock,
   CheckCircle2,
   ArrowLeft,
   Loader2,
   Check,
+  Stamp,
 } from "lucide-react";
 import Header from "@/components/Header";
+import { services, ServiceChild } from "@/data"; // adjust path to wherever `services` actually lives
+import axios from "axios";
 
-interface CertificateType {
-  id: string;
-  name: string;
-  description: string;
-  icon: typeof FileText;
-  processingTime: string;
-  fee: string;
+function slugify(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
-
-const certificateTypes: CertificateType[] = [
-  {
-    id: "clearance",
-    name: "Barangay Clearance",
-    description: "General-purpose clearance for employment, business, or legal transactions",
-    icon: Shield,
-    processingTime: "1-2 business days",
-    fee: "₱50.00",
-  },
-  {
-    id: "residency",
-    name: "Certificate of Residency",
-    description: "Confirms your address and length of stay in the barangay",
-    icon: Home,
-    processingTime: "1 business day",
-    fee: "₱30.00",
-  },
-  {
-    id: "indigency",
-    name: "Certificate of Indigency",
-    description: "For availing government assistance or fee waivers",
-    icon: Users,
-    processingTime: "1 business day",
-    fee: "Free",
-  },
-  {
-    id: "business",
-    name: "Business Clearance",
-    description: "Required for new or renewed business permit applications",
-    icon: Briefcase,
-    processingTime: "2-3 business days",
-    fee: "₱100.00",
-  },
-];
 
 type Step = "select" | "details" | "confirmed";
 const stepOrder: Step[] = ["select", "details", "confirmed"];
@@ -71,56 +30,69 @@ const stepLabels: Record<Step, string> = {
 
 export default function RequestPage() {
   const [step, setStep] = useState<Step>("select");
-  const [selectedType, setSelectedType] = useState<CertificateType | null>(null);
+  const [selectedType, setSelectedType] = useState<ServiceChild | null>(null);
   const [purpose, setPurpose] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [delivery, setDelivery] = useState<"pickup" | "email">("pickup");
   const [submitting, setSubmitting] = useState(false);
   const [referenceNo, setReferenceNo] = useState("");
 
   const currentIndex = stepOrder.indexOf(step);
 
-  const handleSelectType = (type: CertificateType) => {
+  const handleSelectType = (type: ServiceChild) => {
     setSelectedType(type);
     setTimeout(() => setStep("details"), 150);
   };
 
   const handleSubmit = async () => {
+    if (!selectedType) return;
+    if (!purpose.trim()) return;
+
     setSubmitting(true);
-    // TODO: replace with your real API call, e.g.
-    // const res = await fetch("/api/requests", {
-    //   method: "POST",
-    //   body: JSON.stringify({ certificateId: selectedType?.id, purpose, quantity, delivery }),
-    // });
-    // const data = await res.json();
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    const ref = `SI-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    setReferenceNo(ref);
-    setSubmitting(false);
-    setStep("confirmed");
+
+    try {
+      const res = await axios.post("/api/requests", {
+        serviceTitle: selectedType.title,
+        category: selectedType.category,
+        fee: selectedType.fee,
+        purpose,
+      });
+
+      setReferenceNo(res.data.request.referenceNo);
+      setStep("confirmed");
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        console.error(
+          err.response?.data?.error ?? "Unknown error submitting request.",
+        );
+      } else {
+        console.error(err);
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleReset = () => {
     setStep("select");
     setSelectedType(null);
     setPurpose("");
-    setQuantity(1);
-    setDelivery("pickup");
     setReferenceNo("");
   };
 
   return (
-    
-
+    <>
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-10">
         {/* Page header */}
         <div className="mb-6">
           <p className="text-slate-400 text-[11px] font-medium uppercase tracking-wide mb-1">
             Resident Portal
           </p>
-          <h1 className="text-slate-900 text-xl font-bold">Request a certificate</h1>
+          <h1 className="text-slate-900 text-xl font-bold">
+            Request a certificate
+          </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Choose a certificate type and we'll prepare it for pickup or email.
+            Choose a certificate type and we'll prepare it for pickup at the
+            barangay hall.
           </p>
         </div>
 
@@ -134,8 +106,8 @@ export default function RequestPage() {
                     i < currentIndex
                       ? "bg-[#0F172A] text-white"
                       : i === currentIndex
-                      ? "bg-[#0F172A] text-white ring-4 ring-[#0F172A]/10"
-                      : "bg-slate-100 text-slate-400"
+                        ? "bg-[#0F172A] text-white ring-4 ring-[#0F172A]/10"
+                        : "bg-slate-100 text-slate-400"
                   }`}
                 >
                   {i < currentIndex ? <Check className="w-3 h-3" /> : i + 1}
@@ -162,49 +134,75 @@ export default function RequestPage() {
 
         {/* Step: select certificate type */}
         {step === "select" && (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {certificateTypes.map((cert) => {
-              const Icon = cert.icon;
-              const isSelected = selectedType?.id === cert.id;
-              return (
-                <button
-                  key={cert.id}
-                  onClick={() => handleSelectType(cert)}
-                  className={`group relative text-left p-4 rounded-xl border bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
-                    isSelected ? "border-[#0F172A]" : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  {isSelected && (
-                    <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#0F172A] flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
-                    </span>
-                  )}
-                  <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 mb-3 ${
-                      isSelected ? "bg-[#0F172A]" : "bg-slate-100 group-hover:bg-[#0F172A]"
+          <>
+            <p className="text-xs text-slate-500 mb-3">
+              <span className="text-rose-500">*</span> Required — choose one
+              service
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {services.map((service) => {
+                const Icon = service.icon;
+                const id = slugify(service.title);
+                const isSelected =
+                  selectedType && slugify(selectedType.title) === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleSelectType(service)}
+                    className={`group relative text-left p-4 rounded-xl border bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
+                      isSelected
+                        ? "border-[#0F172A]"
+                        : "border-slate-200 hover:border-slate-300"
                     }`}
                   >
-                    <Icon
-                      className={`w-4 h-4 transition-colors duration-200 ${
-                        isSelected ? "text-[#B45309]" : "text-slate-600 group-hover:text-[#B45309]"
+                    {isSelected && (
+                      <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#0F172A] flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </span>
+                    )}
+                    <div
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 mb-3 ${
+                        isSelected
+                          ? "bg-[#0F172A]"
+                          : "bg-slate-100 group-hover:bg-[#0F172A]"
                       }`}
-                    />
-                  </div>
-                  <p className="text-slate-900 text-sm font-semibold mb-1 pr-6">{cert.name}</p>
-                  <p className="text-slate-500 text-xs leading-relaxed mb-3">
-                    {cert.description}
-                  </p>
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {cert.processingTime}
-                    </span>
-                    <span className="font-semibold text-slate-600">{cert.fee}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                    >
+                      <Icon
+                        className={`w-4 h-4 transition-colors duration-200 ${
+                          isSelected
+                            ? "text-[#B45309]"
+                            : "text-slate-600 group-hover:text-[#B45309]"
+                        }`}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mb-1 pr-6">
+                      <p className="text-slate-900 text-sm font-semibold">
+                        {service.title}
+                      </p>
+                      {service.tag && (
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-[#B45309] bg-[#B45309]/10 px-1.5 py-0.5 rounded-full">
+                          {service.tag}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-500 text-xs leading-relaxed mb-3">
+                      {service.description}
+                    </p>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {service.processing}
+                      </span>
+                      <span className="font-semibold text-slate-600">
+                        {service.fee}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Step: request details */}
@@ -223,9 +221,11 @@ export default function RequestPage() {
                 <selectedType.icon className="w-4.5 h-4.5 text-[#B45309]" />
               </div>
               <div>
-                <p className="text-slate-900 text-sm font-semibold">{selectedType.name}</p>
+                <p className="text-slate-900 text-sm font-semibold">
+                  {selectedType.title}
+                </p>
                 <p className="text-slate-500 text-xs">
-                  {selectedType.processingTime} · {selectedType.fee}
+                  {selectedType.processing} · {selectedType.fee}
                 </p>
               </div>
             </div>
@@ -233,66 +233,21 @@ export default function RequestPage() {
             <div className="space-y-5">
               <div>
                 <label className="block text-slate-700 text-xs font-semibold uppercase tracking-wide mb-2">
-                  Purpose
+                  Purpose <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder="e.g. Requirement for job application"
                   rows={3}
+                  required
                   className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10 focus:border-[#0F172A] transition-all duration-200 resize-none"
                 />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 text-xs font-semibold uppercase tracking-wide mb-2">
-                  Number of copies
-                </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-9 h-9 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all duration-150"
-                  >
-                    −
-                  </button>
-                  <span className="w-8 text-center text-sm font-semibold text-slate-900 tabular-nums">
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={() => setQuantity((q) => Math.min(5, q + 1))}
-                    className="w-9 h-9 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all duration-150"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 text-xs font-semibold uppercase tracking-wide mb-2">
-                  Delivery method
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setDelivery("pickup")}
-                    className={`px-3.5 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                      delivery === "pickup"
-                        ? "border-[#0F172A] bg-[#0F172A] text-white"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
-                    }`}
-                  >
-                    Pick up at hall
-                  </button>
-                  <button
-                    onClick={() => setDelivery("email")}
-                    className={`px-3.5 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                      delivery === "email"
-                        ? "border-[#0F172A] bg-[#0F172A] text-white"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
-                    }`}
-                  >
-                    Email a copy
-                  </button>
-                </div>
+                {!purpose.trim() && (
+                  <p className="text-[11px] text-slate-400 mt-1.5">
+                    This field is required.
+                  </p>
+                )}
               </div>
 
               <button
@@ -323,32 +278,44 @@ export default function RequestPage() {
               <CheckCircle2 className="absolute -bottom-1 -right-1 w-6 h-6 text-white bg-[#0F172A] rounded-full" />
             </div>
 
-            <h2 className="text-slate-900 text-lg font-bold mb-1">Request submitted</h2>
+            <h2 className="text-slate-900 text-lg font-bold mb-1">
+              Request submitted
+            </h2>
             <p className="text-slate-500 text-sm mb-6">
-              We'll notify you once your {selectedType.name.toLowerCase()} is ready.
+              We'll notify you once your {selectedType.title.toLowerCase()} is
+              ready for pickup.
             </p>
 
             <div className="inline-flex flex-col items-center gap-1 px-6 py-4 rounded-xl bg-slate-50 border border-slate-200 mb-6">
               <p className="text-slate-400 text-[11px] font-medium uppercase tracking-wide">
                 Reference number
               </p>
-              <p className="text-slate-900 text-base font-bold tracking-wide">{referenceNo}</p>
+              <p className="text-slate-900 text-base font-bold tracking-wide">
+                {referenceNo}
+              </p>
             </div>
 
             <div className="flex items-center justify-center gap-2 text-slate-500 text-xs mb-8">
               <Clock className="w-3.5 h-3.5" />
-              Estimated ready in {selectedType.processingTime}
+              Estimated ready in {selectedType.processing}
             </div>
 
             <button
               onClick={handleReset}
+              disabled={!purpose.trim() || submitting}
               className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors duration-200"
             >
-              Request another certificate
+             {submitting ? (
+              <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              </>
+             ): (
+              "Submit Request"
+             )}
             </button>
           </div>
         )}
       </main>
-    
+    </>
   );
 }
