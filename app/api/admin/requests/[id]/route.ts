@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { connection } from "@/lib/database";
 import RequestModel from "@/models/RequestModel";
+import { sendRequestStatusUpdateEmail } from "@/lib/mail/sendRequestStatusUpdate";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -40,11 +41,40 @@ export async function PATCH(
       { returnDocument: "after" }
     ).populate({
       path: "profile_id",
-      populate: { path: "user", select: "fullName" },
+      populate: { path: "user", select: "fullName email" },
     });
 
     if (!updated) {
       return NextResponse.json({ error: "Request not found." }, { status: 404 });
+    }
+
+    const residentUser = (updated.profile_id as any)?.user as
+      | { fullName?: string; email?: string }
+      | undefined;
+
+    // Only "released" and "rejected" trigger a notification — "pending" is the
+    // default/initial state and shouldn't re-notify the resident on every save.
+    if (
+      (parsed.data.status === "released" || parsed.data.status === "rejected") &&
+      residentUser?.email
+    ) {
+      try {
+        await sendRequestStatusUpdateEmail({
+          to: residentUser.email,
+          recipientName: residentUser.fullName ?? "Resident",
+          referenceNo: updated.referenceNo,
+          serviceTitle: updated.serviceTitle,
+          status: parsed.data.status,
+        });
+      } catch (mailErr) {
+        console.error("Failed to send status update email:", mailErr);
+        // Don't fail the whole request just because the email didn't send —
+        // the status change itself already succeeded and was saved.
+      }
+    } else if (parsed.data.status !== "pending") {
+      console.warn(
+        `No email found for resident on request ${updated._id.toString()} — status update email not sent.`,
+      );
     }
 
     return NextResponse.json(
@@ -59,7 +89,7 @@ export async function PATCH(
           stage: updated.stage,
           status: updated.status,
           submitted: updated.createdAt.toISOString().split("T")[0],
-          residentName: (updated.profile_id as any)?.user?.fullName ?? "Unknown",
+          residentName: residentUser?.fullName ?? "Unknown",
         },
       },
       { status: 200 }
