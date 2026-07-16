@@ -210,7 +210,7 @@ export type SidebarAdminChild = {
   href: string;
   label: string;
   icon: ComponentType<IconProps>;
-  badge?: boolean
+  badge?: boolean;
 };
 
 // Sidebar admin
@@ -221,19 +221,26 @@ export const SidebarAdmin: SidebarAdminChild[] = [
     icon: LayoutGrid,
   },
   {
-    href: '/certificate-requests',
+    href: "/certificate-requests",
     label: "Certificate Request",
     icon: FileText,
-    badge: true
+    badge: true,
   },
   {
-    href: '/residents',
+    href: "/residents",
     label: "Resident",
-    icon: Users
-  }
+    icon: Users,
+  },
 ];
 
-
 export const CERT_TYPES: string[] = Array.from(
-  new Set(services.map(s => s.title))
-)
+  new Set(services.map((s) => s.title)),
+);
+
+export const AUTH_ERROR_CODES = {
+  UNVERIFIED: "unverified",
+  UNAPPROVED: "unapproved",
+  CREDENTIALS: "CredentialsSignin",
+} as const;
+export type AuthErrorCode =
+  (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];

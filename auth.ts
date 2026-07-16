@@ -4,15 +4,16 @@ import { authConfig } from "./auth.config";
 import { authFormSchema } from "./lib/utils";
 import { connection } from "./lib/database";
 import UserModel from "./models/UserModel";
+import { AUTH_ERROR_CODES } from "./constant";
 
 class UnverifiedError extends CredentialsSignin {
-  code = "unverified";
-  static type = "unverified";
+  code = AUTH_ERROR_CODES.UNAPPROVED;
+  static type = AUTH_ERROR_CODES.UNAPPROVED;
 }
 
 class UnapprovedError extends CredentialsSignin {
-  code = "unapproved";
-  static type = "unapproved";
+  code = AUTH_ERROR_CODES.UNAPPROVED;
+  static type = AUTH_ERROR_CODES.UNAPPROVED;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({

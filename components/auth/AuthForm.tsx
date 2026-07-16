@@ -12,6 +12,9 @@ import { useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
 import { toast } from "sonner";
 import axios from "axios";
+
+import { AUTH_ERROR_CODES, type AuthErrorCode } from "@/constant";
+
 const MAX_FILE_SIZE_MB = 5;
 const ACCEPTED_TYPES = [
   "image/jpeg",
@@ -129,26 +132,30 @@ const AuthForm = ({ type }: { type: string }) => {
           redirect: false,
         });
 
+        const AUTH_ERROR_MESSAGES: Record<AuthErrorCode, string> = {
+          [AUTH_ERROR_CODES.UNVERIFIED]:
+            "Please verify your email before signing in.",
+          [AUTH_ERROR_CODES.UNAPPROVED]:
+            "Your account is pending admin approval.",
+          [AUTH_ERROR_CODES.CREDENTIALS]: "Invalid email or password.",
+        };
+
         if (result?.error) {
-          const messages: Record<string, string> = {
-            unverified: "Please verify your email before signing in.",
-            unapproved: "Your account is pending admin approval.",
-            CredentialsSignin: "Invalid email or password.",
-          };
           toast.error(
-            messages[result.error] || "Something went wrong. Please try again.",
+            AUTH_ERROR_MESSAGES[result.error as AuthErrorCode] ??
+              "Something went wrong. Please try again.",
           );
           return;
         }
 
         toast.success("Sign in successfully");
-        const session = await getSession()
+        const session = await getSession();
         const role = session?.user?.role;
 
         const roleRedirects: Record<string, string> = {
-          admin: '/dashboard',
-          resident: '/home',
-        }
+          admin: "/dashboard",
+          resident: "/home",
+        };
         router.push(roleRedirects[role as string] || callbackUrl);
         router.refresh();
         return;

@@ -19,6 +19,12 @@ const ROLE_HOME: Record<UserRole, string> = {
   superadmin: "/dashboard",
 };
 
+function matchRoute(path: string) {
+  return ROUTE_RULES.find(
+    (rule) => path === rule.prefix || path.startsWith(rule.prefix + "/")
+  );
+}
+
 export const authConfig = {
   pages: {
     signIn: "/sign-in",
@@ -34,7 +40,7 @@ export const authConfig = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as UserRole
+        session.user.role = token.role as UserRole;
       }
       return session;
     },
@@ -42,15 +48,25 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const path = request.nextUrl.pathname;
 
-      const matchedRule = ROUTE_RULES.find((rule) =>
-        path.startsWith(rule.prefix)
-      );
+      const matchedRule = matchRoute(path);
 
-      if (!matchedRule) return true;
+      // No rule matches this path
+      if (!matchedRule) {
+        // Optional: redirect authenticated users away from root to their role home
+        if (path === "/" && isLoggedIn && auth.user.role) {
+          return Response.redirect(
+            new URL(ROLE_HOME[auth.user.role], request.nextUrl)
+          );
+        }
+        return true;
+      }
+
+      // Path is protected but user isn't logged in
       if (!isLoggedIn) return false;
 
       const role = auth.user.role;
 
+      // Logged in but wrong role for this route
       if (!role || !matchedRule.roles.includes(role)) {
         const deniedUrl = new URL("/unauthorized", request.nextUrl);
         deniedUrl.searchParams.set("path", path);
