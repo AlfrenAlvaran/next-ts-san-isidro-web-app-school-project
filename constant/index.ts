@@ -39,7 +39,7 @@ import {
   IconProps,
   ShieldIcon,
 } from "@/components/icons";
-import { FileText, LayoutGrid } from "lucide-react";
+import { FileText, LayoutGrid, Users } from "lucide-react";
 import { ComponentType } from "react";
 
 export type ValueChild = {
@@ -225,6 +225,11 @@ export const SidebarAdmin: SidebarAdminChild[] = [
     label: "Certificate Request",
     icon: FileText,
     badge: true
+  },
+  {
+    href: '/residents',
+    label: "Resident",
+    icon: Users
   }
 ];
 

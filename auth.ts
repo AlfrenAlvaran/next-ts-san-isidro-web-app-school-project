@@ -4,7 +4,6 @@ import { authConfig } from "./auth.config";
 import { authFormSchema } from "./lib/utils";
 import { connection } from "./lib/database";
 import UserModel from "./models/UserModel";
-import { UserRole } from "./constant/types";
 
 class UnverifiedError extends CredentialsSignin {
   code = "unverified";
@@ -66,21 +65,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   session: { strategy: "jwt" },
-  callbacks: {
-    ...authConfig.callbacks,
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as UserRole;
-      }
-      return session;
-    },
-  },
 });

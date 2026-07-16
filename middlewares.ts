@@ -1,23 +1,11 @@
-import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+// middleware.ts
+import NextAuth from "next-auth";
+import { authConfig } from "./auth.config";
 
-export default auth((req) => {
-  const { pathname } = req.nextUrl;
-  const role = req.auth?.user?.role;
-
-  if (pathname.startsWith("/admin") && role !== "admin") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
-
-  if (pathname.startsWith("/resident") && role !== "resident" && role !== "admin") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
-
-  if (!req.auth && pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/sign-in", req.url));
-  }
-});
+export const { auth: middleware } = NextAuth(authConfig);
 
 export const config = {
-  matcher: ["/admin/:path*", "/staff/:path*", "/dashboard/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

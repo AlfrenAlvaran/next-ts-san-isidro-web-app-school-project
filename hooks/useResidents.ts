@@ -5,12 +5,23 @@ import { useMemo } from "react";
 
 export type ResidentItem = {
   id: string;
+  userId: string;
   fullName: string;
   email: string;
   phone: string;
   isApproved: boolean;
   isVerified: boolean;
   avatarUrl: string | null;
+  birthdate: string | null;
+  age: number | null;
+  sex: "Male" | "Female" | null;
+  civilStatus: "Single" | "Married" | "Widowed" | "Separated" | null;
+  address: string | null;
+  purok: string | null;
+  householdNo: string | null;
+  idNumber: string | null;
+  yearsResiding: string | null;
+  memberSince: string | null;
   joined: string; // "YYYY-MM-DD"
 };
 
@@ -41,14 +52,16 @@ export function useResidents() {
     () => list.filter((r) => r.isApproved).length,
     [list]
   );
-
   const pendingApprovalCount = useMemo(
     () => list.filter((r) => !r.isApproved).length,
     [list]
   );
-
   const verifiedCount = useMemo(
     () => list.filter((r) => r.isVerified).length,
+    [list]
+  );
+  const unverifiedCount = useMemo(
+    () => list.filter((r) => !r.isVerified).length,
     [list]
   );
 
@@ -74,6 +87,71 @@ export function useResidents() {
     return list.filter((r) => new Date(r.joined) >= thisWeekStart).length;
   }, [list, today]);
 
+  // Real distribution by purok, derived from actual ResidentProfile.purok values —
+  // residents with no purok set are grouped under "Unassigned"
+  const byPurok = useMemo(() => {
+    const groups = new Map<string, { residents: number; households: Set<string> }>();
+
+    for (const r of list) {
+      const key = r.purok?.trim() || "Unassigned";
+      if (!groups.has(key)) {
+        groups.set(key, { residents: 0, households: new Set() });
+      }
+      const g = groups.get(key)!;
+      g.residents += 1;
+      if (r.householdNo) g.households.add(r.householdNo);
+    }
+
+    return Array.from(groups.entries())
+      .map(([purok, g]) => ({
+        purok,
+        residents: g.residents,
+        households: g.households.size,
+      }))
+      .sort((a, b) => b.residents - a.residents);
+  }, [list]);
+
+  const totalHouseholds = useMemo(() => {
+    const households = new Set(
+      list.filter((r) => r.householdNo).map((r) => r.householdNo)
+    );
+    return households.size;
+  }, [list]);
+
+  // Sex distribution — residents with no sex set are grouped under "Unspecified"
+  const bySex = useMemo(() => {
+    const groups = new Map<string, number>();
+    for (const r of list) {
+      const key = r.sex ?? "Unspecified";
+      groups.set(key, (groups.get(key) ?? 0) + 1);
+    }
+    return Array.from(groups.entries())
+      .map(([sex, count]) => ({ sex, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [list]);
+
+  // Civil status distribution — residents with no civilStatus set are grouped under "Unspecified"
+  const byCivilStatus = useMemo(() => {
+    const groups = new Map<string, number>();
+    for (const r of list) {
+      const key = r.civilStatus ?? "Unspecified";
+      groups.set(key, (groups.get(key) ?? 0) + 1);
+    }
+    return Array.from(groups.entries())
+      .map(([civilStatus, count]) => ({ civilStatus, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [list]);
+
+  // Average age across residents with a known age
+  const averageAge = useMemo(() => {
+    const withAge = list.filter(
+      (r): r is ResidentItem & { age: number } => r.age !== null
+    );
+    if (withAge.length === 0) return null;
+    const sum = withAge.reduce((acc, r) => acc + r.age, 0);
+    return Math.round((sum / withAge.length) * 10) / 10;
+  }, [list]);
+
   const recent = useMemo(
     () =>
       [...list]
@@ -91,8 +169,14 @@ export function useResidents() {
     approvedCount,
     pendingApprovalCount,
     verifiedCount,
+    unverifiedCount,
     deltaPct,
     newThisWeek,
+    byPurok,
+    totalHouseholds,
+    bySex,
+    byCivilStatus,
+    averageAge,
     recent,
   };
 }
