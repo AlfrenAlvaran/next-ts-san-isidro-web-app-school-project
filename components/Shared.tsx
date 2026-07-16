@@ -1,6 +1,6 @@
 import React from "react";
 import type { LucideIcon } from "lucide-react";
-import { Send, Search as SearchIcon, CheckCircle2, PackageCheck, XCircle } from "lucide-react";
+import { Send, Search as SearchIcon, CheckCircle2, PackageCheck, XCircle, ArrowRight, ArrowDownRight } from "lucide-react";
 
 
 import { RequestStatus, STAGES } from "@/data";
@@ -132,4 +132,26 @@ export function QuickAction({ icon: Icon, label, onClick, primary }: QuickAction
       <span className={`text-[13px] font-semibold ${primary ? "text-white" : "text-slate-800"}`}>{label}</span>
     </button>
   );
+}
+
+export function KPICard({label,value, delta, positive, icon: Icon}: {
+  label: string
+  value: string |number
+  delta: string
+  positive: boolean
+  icon: React.ElementType
+}) {
+  return  <div className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md hover:border-slate-300 transition-all duration-200">
+      <div className="flex items-start justify-between mb-4">
+        <div className="w-9 h-9 rounded-lg bg-[#0F172A] flex items-center justify-center">
+          <Icon className="w-4 h-4 text-[#B8860B]" strokeWidth={2} />
+        </div>
+        <div className={`flex items-center gap-1 text-[11px] font-semibold ${positive ? "text-emerald-600" : "text-rose-600"}`}>
+          {positive ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+          {delta}
+        </div>
+      </div>
+      <p className="text-2xl font-extrabold text-slate-900 tabular-nums tracking-tight">{value}</p>
+      <p className="text-slate-500 text-xs mt-1">{label}</p>
+    </div>
 }

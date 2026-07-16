@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { SidebarAdmin } from "@/constant";
 import { useRequests } from "@/hooks/useRequests";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -10,6 +11,18 @@ import { usePathname } from "next/navigation";
 const Sidebar = () => {
   const { pendingCount } = useRequests();
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  const Fullname = session?.user?.name;
+
+  const role = session?.user.role;
+  const initials = Fullname
+    ?.split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
   return (
     <aside className="hidden lg:flex w-64 shrink-0 bg-[#0F172A] flex-col">
       <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-800">
@@ -63,14 +76,23 @@ const Sidebar = () => {
       </nav>
 
       <div className="px-4 py-5 border-t border-slate-800 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold">
-          KP
-        </div>
+        {session?.user?.image ? (
+          <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 relative">
+            <Image
+              src={session.user.image}
+              alt={Fullname as string}
+              fill
+              className="object-cover"
+            />
+          </div>
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold">
+            {initials}
+          </div>
+        )}
         <div className="min-w-0">
-          <p className="text-white text-xs font-semibold truncate">
-            Kap. Julieta P. Ramos
-          </p>
-          <p className="text-slate-500 text-[10px]">Punong Barangay</p>
+          <p className="text-white text-xs font-semibold truncate">{Fullname}</p>
+          <p className="text-slate-500 text-[10px]">{role}</p>
         </div>
       </div>
     </aside>

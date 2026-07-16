@@ -3,8 +3,15 @@ import React, { useState } from "react";
 import { Search, Bell, ChevronDown, Stamp } from "lucide-react";
 import Image from "next/image";
 import { useRequests } from "@/hooks/useRequests";
+import { useSession } from "next-auth/react";
 const TopBar = () => {
   const { pendingCount } = useRequests();
+  const { data: session } = useSession();
+  const initials = session?.user?.name
+    ?.split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
   const [query, setQuery] = useState("");
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-5 sm:px-8 gap-4">
@@ -40,7 +47,7 @@ const TopBar = () => {
         </button>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-[#0F172A] flex items-center justify-center text-[#B8860B] text-xs font-bold">
-            KP
+            {initials}
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
         </div>
