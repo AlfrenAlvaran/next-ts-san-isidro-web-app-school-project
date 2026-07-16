@@ -1,3 +1,4 @@
+import { services } from "@/data";
 import { NavLink } from "./types";
 
 export const navLinks: NavLink[] = [
@@ -220,9 +221,14 @@ export const SidebarAdmin: SidebarAdminChild[] = [
     icon: LayoutGrid,
   },
   {
-    href: '/certificate',
+    href: '/certificate-requests',
     label: "Certificate Request",
     icon: FileText,
     badge: true
   }
 ];
+
+
+export const CERT_TYPES: string[] = Array.from(
+  new Set(services.map(s => s.title))
+)

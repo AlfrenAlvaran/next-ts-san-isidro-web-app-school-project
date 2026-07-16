@@ -33,10 +33,12 @@ function daysAgo(n: number, from: Date) {
 export function useRequests(scope: "mine" | "admin" = "mine") {
   const endpoint = scope === "admin" ? "/api/admin/requests" : "/api/requests";
 
-  const { data: requests, error, isLoading, mutate } = useSWR<RequestItem[]>(
-    endpoint,
-    fetcher
-  );
+  const {
+    data: requests,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<RequestItem[]>(endpoint, fetcher);
 
   const createRequest = async (payload: {
     serviceTitle: string;
@@ -60,22 +62,44 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     }
   };
 
+  const updateStatus = async (
+    id: string,
+    status: "pending" | "released" | "rejected",
+  ) => {
+    try {
+      const res = await axios.patch(`/api/admin/requests/${id}`, { status });
+      const updated: RequestItem = res.data.request;
+      mutate(
+        (list ?? []).map((r) => (r.id === id ? updated : r)),
+        false,
+      );
+      return updated;
+    } catch (error) {
+      const message =
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? error.response.data.error
+          : "Failed to update request. Please try again.";
+      toast.error(message);
+      throw error;
+    }
+  };
+
   const list = requests ?? [];
   const today = startOfDay(new Date());
 
   const pendingCount = useMemo(
     () => list.filter((r) => r.status === ("pending" as RequestStatus)).length,
-    [list]
+    [list],
   );
 
   const releasedCount = useMemo(
     () => list.filter((r) => r.status === ("released" as RequestStatus)).length,
-    [list]
+    [list],
   );
 
   const rejectedCount = useMemo(
     () => list.filter((r) => r.status === ("rejected" as RequestStatus)).length,
-    [list]
+    [list],
   );
 
   const countsByStatus = useMemo(() => {
@@ -91,9 +115,9 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
       list.filter(
         (r) =>
           r.status === ("pending" as RequestStatus) &&
-          startOfDay(new Date(r.submitted)).getTime() === today.getTime()
+          startOfDay(new Date(r.submitted)).getTime() === today.getTime(),
       ).length,
-    [list, today]
+    [list, today],
   );
 
   const releasedThisWeekChange = useMemo(() => {
@@ -105,11 +129,13 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
       r.status === ("released" as RequestStatus);
 
     const thisWeek = list.filter(
-      (r) => isReleased(r) && new Date(r.submitted) >= thisWeekStart
+      (r) => isReleased(r) && new Date(r.submitted) >= thisWeekStart,
     ).length;
     const lastWeek = list.filter((r) => {
       const submitted = new Date(r.submitted);
-      return isReleased(r) && submitted >= lastWeekStart && submitted < lastWeekEnd;
+      return (
+        isReleased(r) && submitted >= lastWeekStart && submitted < lastWeekEnd
+      );
     }).length;
 
     if (lastWeek === 0) return thisWeek > 0 ? 100 : 0;
@@ -137,7 +163,7 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     const lastWeekEnd = daysAgo(6, today);
 
     const thisWeekCount = list.filter(
-      (r) => new Date(r.submitted) >= thisWeekStart
+      (r) => new Date(r.submitted) >= thisWeekStart,
     ).length;
     const lastWeekCount = list.filter((r) => {
       const submitted = new Date(r.submitted);
@@ -152,10 +178,11 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     () =>
       [...list]
         .sort(
-          (a, b) => new Date(b.submitted).getTime() - new Date(a.submitted).getTime()
+          (a, b) =>
+            new Date(b.submitted).getTime() - new Date(a.submitted).getTime(),
         )
         .slice(0, 5),
-    [list]
+    [list],
   );
 
   return {
@@ -173,5 +200,6 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     weeklySeries,
     weekOverWeekChange,
     recent,
+    updateStatus,
   };
 }

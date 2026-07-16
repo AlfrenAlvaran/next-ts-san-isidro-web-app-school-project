@@ -9,10 +9,6 @@ export async function GET() {
   try {
     const session = await auth();
 
-    // ASSUMPTION: session.user.role exists ("resident" | "admin" | "superadmin"),
-    // matching the enum on UserModel. Confirm this is actually populated in
-    // your auth() session/jwt callbacks — if not, this check silently fails closed
-    // (returns 401 for everyone), which is at least safe, but worth verifying.
     const role = (session?.user as { role?: string } | undefined)?.role;
     if (!session?.user || !["admin", "superadmin"].includes(role ?? "")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,12 +16,12 @@ export async function GET() {
 
     await connection();
 
-    // ASSUMPTION: ResidentProfileModel has a "fullName" field (or similar) to
-    // populate for a "resident name" column on the admin table. If it doesn't,
-    // drop the .populate() call and residentName mapping below.
     const docs = await RequestModel.find()
       .sort({ createdAt: -1 })
-      .populate("profile_id", "fullName");
+      .populate({
+        path: "profile_id",
+        populate: { path: "user", select: "fullName" },
+      });
 
     const requests = docs.map((r) => ({
       id: r._id.toString(),
@@ -37,7 +33,7 @@ export async function GET() {
       stage: r.stage,
       status: r.status,
       submitted: r.createdAt.toISOString().split("T")[0],
-      residentName: (r.profile_id as any)?.fullName ?? "Unknown",
+      residentName: (r.profile_id as any)?.user?.fullName ?? "Unknown",
     }));
 
     return NextResponse.json({ requests }, { status: 200 });

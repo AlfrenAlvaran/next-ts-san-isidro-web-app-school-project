@@ -155,3 +155,29 @@ export function KPICard({label,value, delta, positive, icon: Icon}: {
       <p className="text-slate-500 text-xs mt-1">{label}</p>
     </div>
 }
+
+interface StatusPillProps {
+  status: RequestStatus;
+}
+
+export function StatusPill({ status }: StatusPillProps) {
+  if (status === "released") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Released
+      </span>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 ring-1 ring-rose-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Rejected
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
+    </span>
+  );
+}
