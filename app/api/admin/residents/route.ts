@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { connection } from "@/lib/database";
+import UserModel from "@/models/UserModel";
 import ResidentProfileModel from "@/models/ResidentProfileModel";
 import { NextResponse } from "next/server";
 
@@ -15,12 +16,23 @@ export async function GET() {
 
     await connection();
 
-    const docs = await ResidentProfileModel.find()
-      .sort({ createdAt: -1 })
-      .populate({
-        path: "user",
-        select: "fullName email phone isApproved isVerified avatarUrl",
-      });
+    // Start from every resident *account*, not just the ones that already
+    // filled out a ResidentProfile — this is what makes accounts with
+    // isApproved: false (no profile yet) show up too.
+    const users = await UserModel.find({ role: "resident" }).sort({
+      createdAt: -1,
+    });
+
+    const profiles = await ResidentProfileModel.find({
+      user: { $in: users.map((u) => u._id) },
+    });
+
+    const profileByUserId = new Map(
+      profiles.map((p) => [String(p.user), p]),
+    );
+
+    console.log(`[residents] fetched ${users.length} User(s) with role "resident"`);
+    console.log(`[residents] fetched ${profiles.length} matching ResidentProfile doc(s)`);
 
     function calcAge(birthdate: Date | null | undefined): number | null {
       if (!birthdate) return null;
@@ -28,43 +40,35 @@ export async function GET() {
       return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
     }
 
-    const residents = docs
-      .filter((p) => p.user) // guard against orphaned profiles if a User was ever deleted
-      .map((p) => {
-        const u = p.user as unknown as {
-          _id: unknown;
-          fullName?: string;
-          email: string;
-          phone: string;
-          isApproved: boolean;
-          isVerified: boolean;
-          avatarUrl: string | null;
-        };
+    const residents = users.map((u) => {
+      const p = profileByUserId.get(String(u._id));
 
-        return {
-          id: p._id.toString(),
-          userId: String(u._id),
-          fullName: u.fullName ?? "Unnamed",
-          email: u.email,
-          phone: u.phone,
-          isApproved: u.isApproved,
-          isVerified: u.isVerified,
-          avatarUrl: u.avatarUrl,
-          birthdate: p.birthdate,
-          age: calcAge(p.birthdate),
-          sex: p.sex,
-          civilStatus: p.civilStatus,
-          address: p.address,
-          purok: p.purok,
-          householdNo: p.householdNo,
-          idNumber: p.idNumber,
-          yearsResiding: p.yearsResiding,
-          memberSince: p.memberSince
-            ? p.memberSince.toISOString().split("T")[0]
-            : null,
-          joined: p.createdAt.toISOString().split("T")[0],
-        };
-      });
+      return {
+        id: p ? p._id.toString() : String(u._id),
+        userId: String(u._id),
+        fullName: u.fullName ?? "Unnamed",
+        email: u.email,
+        phone: u.phone,
+        isApproved: u.isApproved,
+        isVerified: u.isVerified,
+        avatarUrl: u.avatarUrl,
+        documentUrl: u.documentUrl,
+        birthdate: p?.birthdate ?? null,
+        age: calcAge(p?.birthdate),
+        sex: p?.sex ?? null,
+        civilStatus: p?.civilStatus ?? null,
+        address: p?.address ?? null,
+        purok: p?.purok ?? null,
+        householdNo: p?.householdNo ?? null,
+        idNumber: p?.idNumber ?? null,
+        yearsResiding: p?.yearsResiding ?? null,
+        memberSince: p?.memberSince
+          ? p.memberSince.toISOString().split("T")[0]
+          : null,
+        hasProfile: Boolean(p),
+        joined: (p?.createdAt ?? u.createdAt).toISOString().split("T")[0],
+      };
+    });
 
     return NextResponse.json({ residents }, { status: 200 });
   } catch (error) {

@@ -12,6 +12,7 @@ export type ResidentItem = {
   isApproved: boolean;
   isVerified: boolean;
   avatarUrl: string | null;
+  documentUrl: string | null;
   birthdate: string | null;
   age: number | null;
   sex: "Male" | "Female" | null;
@@ -22,6 +23,7 @@ export type ResidentItem = {
   idNumber: string | null;
   yearsResiding: string | null;
   memberSince: string | null;
+  hasProfile: boolean;
   joined: string; // "YYYY-MM-DD"
 };
 
@@ -38,10 +40,12 @@ function daysAgo(n: number, from: Date) {
 }
 
 export function useResidents() {
-  const { data: residents, error, isLoading, mutate } = useSWR<ResidentItem[]>(
-    "/api/admin/residents",
-    fetcher
-  );
+  const {
+    data: residents,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<ResidentItem[]>("/api/admin/residents", fetcher);
 
   const list = residents ?? [];
   const today = startOfDay(new Date());
@@ -50,19 +54,19 @@ export function useResidents() {
 
   const approvedCount = useMemo(
     () => list.filter((r) => r.isApproved).length,
-    [list]
+    [list],
   );
   const pendingApprovalCount = useMemo(
     () => list.filter((r) => !r.isApproved).length,
-    [list]
+    [list],
   );
   const verifiedCount = useMemo(
     () => list.filter((r) => r.isVerified).length,
-    [list]
+    [list],
   );
   const unverifiedCount = useMemo(
     () => list.filter((r) => !r.isVerified).length,
-    [list]
+    [list],
   );
 
   const deltaPct = useMemo(() => {
@@ -71,7 +75,7 @@ export function useResidents() {
     const lastWeekEnd = daysAgo(6, today);
 
     const thisWeekCount = list.filter(
-      (r) => new Date(r.joined) >= thisWeekStart
+      (r) => new Date(r.joined) >= thisWeekStart,
     ).length;
     const lastWeekCount = list.filter((r) => {
       const joined = new Date(r.joined);
@@ -90,7 +94,10 @@ export function useResidents() {
   // Real distribution by purok, derived from actual ResidentProfile.purok values —
   // residents with no purok set are grouped under "Unassigned"
   const byPurok = useMemo(() => {
-    const groups = new Map<string, { residents: number; households: Set<string> }>();
+    const groups = new Map<
+      string,
+      { residents: number; households: Set<string> }
+    >();
 
     for (const r of list) {
       const key = r.purok?.trim() || "Unassigned";
@@ -113,7 +120,7 @@ export function useResidents() {
 
   const totalHouseholds = useMemo(() => {
     const households = new Set(
-      list.filter((r) => r.householdNo).map((r) => r.householdNo)
+      list.filter((r) => r.householdNo).map((r) => r.householdNo),
     );
     return households.size;
   }, [list]);
@@ -145,7 +152,7 @@ export function useResidents() {
   // Average age across residents with a known age
   const averageAge = useMemo(() => {
     const withAge = list.filter(
-      (r): r is ResidentItem & { age: number } => r.age !== null
+      (r): r is ResidentItem & { age: number } => r.age !== null,
     );
     if (withAge.length === 0) return null;
     const sum = withAge.reduce((acc, r) => acc + r.age, 0);
@@ -155,10 +162,23 @@ export function useResidents() {
   const recent = useMemo(
     () =>
       [...list]
-        .sort((a, b) => new Date(b.joined).getTime() - new Date(a.joined).getTime())
+        .sort(
+          (a, b) => new Date(b.joined).getTime() - new Date(a.joined).getTime(),
+        )
         .slice(0, 5),
-    [list]
+    [list],
   );
+  async function decideResident(
+    userId: string,
+    action: "approve" | "reject",
+    reason?: string,
+  ) {
+    const res = await axios.patch(`/api/admin/residents/${userId}`, {
+      action,
+      reason,
+    });
+    return res.data as { success: boolean; isApproved: boolean };
+  }
 
   return {
     residents: list,
@@ -178,5 +198,6 @@ export function useResidents() {
     byCivilStatus,
     averageAge,
     recent,
+    decideResident,
   };
 }

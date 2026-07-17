@@ -12,6 +12,7 @@ import {
   Eye,
   X,
   Check,
+  Loader2,
 } from "lucide-react";
 import { CERT_TYPES } from "@/constant";
 
@@ -23,22 +24,29 @@ const RequestsPage = () => {
   const [sort, setSort] = useState("newest");
   const [selected, setSelected] = useState<RequestItem | null>(null);
 
-  const filters = ["all", "pending", "released", "rejected"];
+  const [actionLoading, setActionLoading] = useState<
+    "released" | "rejected" | null
+  >(null);
+
+  const filters = ["all", "submitted", "pending", "released", "rejected"];
 
   async function handleUpdateStatus(
     id: string,
-    status: "released" | "rejected"
+    status: "released" | "rejected",
   ) {
+    setActionLoading(status);
     try {
       await updateStatus(id, status);
       setSelected(null);
       toast.success(
         status === "released"
           ? "Certificate approved and queued for release."
-          : "Request rejected."
+          : "Request rejected.",
       );
     } catch {
       // updateStatus already shows an error toast on failure
+    } finally {
+      setActionLoading(null);
     }
   }
 
@@ -62,6 +70,7 @@ const RequestsPage = () => {
 
   const counts = {
     all: requests.length,
+    submitted: requests.filter((r) => r.status === "submitted").length,
     pending: requests.filter((r) => r.status === "pending").length,
     released: requests.filter((r) => r.status === "released").length,
     rejected: requests.filter((r) => r.status === "rejected").length,
@@ -121,7 +130,7 @@ const RequestsPage = () => {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <button
           onClick={() => setStatusFilter("all")}
           className={`text-left bg-white rounded-xl border p-4 transition-colors ${statusFilter === "all" ? "border-[#0F172A]" : "border-slate-200 hover:border-slate-300"}`}
@@ -130,6 +139,15 @@ const RequestsPage = () => {
             {counts.all}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">Total requests</p>
+        </button>
+        <button
+          onClick={() => setStatusFilter("submitted")}
+          className={`text-left bg-white rounded-xl border p-4 transition-colors ${statusFilter === "submitted" ? "border-slate-400" : "border-slate-200 hover:border-slate-300"}`}
+        >
+          <p className="text-xl font-extrabold text-slate-700 tabular-nums">
+            {counts.submitted}
+          </p>
+          <p className="text-xs text-slate-500 mt-0.5">Newly submitted</p>
         </button>
         <button
           onClick={() => setStatusFilter("pending")}
@@ -161,12 +179,12 @@ const RequestsPage = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
-        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 w-fit">
+        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 w-fit overflow-x-auto">
           {filters.map((f) => (
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-[12px] font-semibold capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-[12px] font-semibold capitalize transition-colors shrink-0 ${
                 statusFilter === f
                   ? "bg-[#0F172A] text-white"
                   : "text-slate-500 hover:text-slate-800"
@@ -319,7 +337,10 @@ const RequestsPage = () => {
                 </h3>
               </div>
               <button
-                onClick={() => setSelected(null)}
+                onClick={() => {
+                  setSelected(null);
+                  setActionLoading(null);
+                }}
                 className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center"
               >
                 <X className="w-4 h-4 text-slate-500" />
@@ -358,21 +379,33 @@ const RequestsPage = () => {
                 <Field label="Reference number" value={selected.referenceNo} />
               </div>
             </div>
-
             <div className="px-6 py-5 border-t border-slate-100 flex gap-3">
-              {selected.status === "pending" ? (
+              {selected.status === "submitted" ||
+              selected.status === "pending" ? (
                 <>
                   <button
                     onClick={() => handleUpdateStatus(selected.id, "rejected")}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                    disabled={actionLoading !== null}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <X className="w-4 h-4" /> Reject
+                    {actionLoading === "rejected" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
+                    {actionLoading === "rejected" ? "Rejecting…" : "Reject"}
                   </button>
                   <button
                     onClick={() => handleUpdateStatus(selected.id, "released")}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] hover:bg-[#B8860B] text-white text-sm font-semibold transition-colors"
+                    disabled={actionLoading !== null}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] hover:bg-[#B8860B] text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Check className="w-4 h-4" /> Approve
+                    {actionLoading === "released" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    {actionLoading === "released" ? "Approving…" : "Approve"}
                   </button>
                 </>
               ) : (

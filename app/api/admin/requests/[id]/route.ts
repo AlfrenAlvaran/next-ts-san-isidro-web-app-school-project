@@ -8,8 +8,20 @@ import { z } from "zod";
 export const runtime = "nodejs";
 
 const patchSchema = z.object({
-  status: z.enum(["pending", "released", "rejected"]),
+  status: z.enum(["submitted", "pending", "released", "rejected"]),
 });
+
+const STAGE_FOR_STATUS: Record<z.infer<typeof patchSchema>["status"], number | null> = {
+  submitted: 0,
+  pending: 1,
+  released: 2,
+  rejected: null,
+};
+
+function stageForStatus(status: keyof typeof STAGE_FOR_STATUS, currentStage: number) {
+  const mapped = STAGE_FOR_STATUS[status];
+  return mapped === null ? currentStage : mapped;
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -35,10 +47,17 @@ export async function PATCH(
 
     await connection();
 
+    const existing = await RequestModel.findById(id);
+    if (!existing) {
+      return NextResponse.json({ error: "Request not found." }, { status: 404 });
+    }
+
+    const nextStage = stageForStatus(parsed.data.status, existing.stage);
+
     const updated = await RequestModel.findByIdAndUpdate(
       id,
-      { status: parsed.data.status },
-      { returnDocument: "after" }
+      { status: parsed.data.status, stage: nextStage },
+      { new: true }
     ).populate({
       path: "profile_id",
       populate: { path: "user", select: "fullName email" },
@@ -52,8 +71,6 @@ export async function PATCH(
       | { fullName?: string; email?: string }
       | undefined;
 
-    // Only "released" and "rejected" trigger a notification — "pending" is the
-    // default/initial state and shouldn't re-notify the resident on every save.
     if (
       (parsed.data.status === "released" || parsed.data.status === "rejected") &&
       residentUser?.email
@@ -68,13 +85,7 @@ export async function PATCH(
         });
       } catch (mailErr) {
         console.error("Failed to send status update email:", mailErr);
-        // Don't fail the whole request just because the email didn't send —
-        // the status change itself already succeeded and was saved.
       }
-    } else if (parsed.data.status !== "pending") {
-      console.warn(
-        `No email found for resident on request ${updated._id.toString()} — status update email not sent.`,
-      );
     }
 
     return NextResponse.json(

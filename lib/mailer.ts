@@ -17,3 +17,18 @@ const options: TransportOptionsWithFamily = {
 };
 
 export const transporter = nodemailer.createTransport(options);
+
+export async function sendMail(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}) {
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM ?? '"Barangay Portal" <no-reply@example.com>',
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    text: opts.text,
+  });
+}

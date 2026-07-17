@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       profile_id: profile._id,
       referenceNo,
       stage: 0,
-      status: "pending",
+      status: "submitted",
     });
 
     const submittedDate = created.createdAt.toISOString().split("T")[0];

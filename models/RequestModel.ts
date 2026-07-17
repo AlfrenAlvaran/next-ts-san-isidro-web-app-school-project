@@ -8,7 +8,7 @@ export interface IRequest {
   fee: string;
   purpose: string;
   stage: number;
-  status: "pending" | "released" | "rejected";
+  status: "submitted" | "pending" | "released" | "rejected";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,11 +26,11 @@ const RequestSchema = new Schema<IRequest>(
     category: { type: String, required: true },
     fee: { type: String, required: true },
     purpose: { type: String, required: true, minlength: 3 },
-    stage: { type: Number, required: true, default: 0, min: 0, max: 3 },
+    stage: { type: Number, required: true, default: 0, min: 0, max: 2 },
     status: {
       type: String,
-      enum: ["pending", "released", "rejected"],
-      default: "pending",
+      enum: ["submitted", "pending", "released", "rejected"],
+      default: "submitted",
     },
   },
   { timestamps: true }

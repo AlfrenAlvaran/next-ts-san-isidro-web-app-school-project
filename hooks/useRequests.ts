@@ -64,7 +64,7 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
 
   const updateStatus = async (
     id: string,
-    status: "pending" | "released" | "rejected",
+    status: "submitted" | "pending" | "released" | "rejected",
   ) => {
     try {
       const res = await axios.patch(`/api/admin/requests/${id}`, { status });
@@ -73,6 +73,7 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
         (list ?? []).map((r) => (r.id === id ? updated : r)),
         false,
       );
+      mutate();
       return updated;
     } catch (error) {
       const message =

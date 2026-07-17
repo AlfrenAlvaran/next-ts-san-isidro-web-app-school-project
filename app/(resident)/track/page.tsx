@@ -13,8 +13,6 @@ import {
   Copy,
   Check,
   Inbox,
-  Eye,
-  ThumbsUp,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,16 +32,6 @@ const STATUS_CONFIG: Record<
     icon: Clock,
     className: "bg-amber-50 text-amber-700 border-amber-200",
   },
-  in_review: {
-    label: "In Review",
-    icon: Eye,
-    className: "bg-blue-50 text-blue-700 border-blue-200",
-  },
-  approved: {
-    label: "Approved",
-    icon: ThumbsUp,
-    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  },
   released: {
     label: "Released",
     icon: CheckCircle2,
@@ -60,15 +48,10 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "all", label: "All" },
   { key: "submitted", label: "Submitted" },
   { key: "pending", label: "Pending" },
-  { key: "in_review", label: "In Review" },
-  { key: "approved", label: "Approved" },
   { key: "released", label: "Released" },
   { key: "rejected", label: "Rejected" },
 ];
 
-// Maps a status to how far along the 4-step STAGES track it should show.
-// "stage" from the API already drives this in most cases, but rejected
-// requests short-circuit the track regardless of numeric stage.
 function isTerminalRejected(status: RequestItem["status"]) {
   return status === "rejected";
 }
@@ -179,8 +162,6 @@ const Page = () => {
       all: requests.length,
       submitted: 0,
       pending: 0,
-      in_review: 0,
-      approved: 0,
       released: 0,
       rejected: 0,
     };
@@ -196,7 +177,6 @@ const Page = () => {
 
   return (
     <>
-      {/* Header */}
       <section className="bg-[#0F172A] relative overflow-hidden">
         <div
           className="absolute inset-0 opacity-[0.07]"
@@ -220,7 +200,6 @@ const Page = () => {
       </section>
 
       <main className="max-w-6xl mx-auto px-5 sm:px-8 py-8 space-y-6">
-        {/* Search + filters */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -256,7 +235,6 @@ const Page = () => {
           </div>
         </div>
 
-        {/* List */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-slate-200 rounded-xl">
             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
@@ -333,7 +311,6 @@ const Page = () => {
         )}
       </main>
 
-      {/* Detail slide-over */}
       {selected && (
         <>
           <div
@@ -406,10 +383,8 @@ const Page = () => {
                 ))}
               </dl>
 
-              {(selected.status === "pending" ||
-                selected.status === "submitted" ||
-                selected.status === "in_review" ||
-                selected.status === "approved") && (
+              {(selected.status === "submitted" ||
+                selected.status === "pending") && (
                 <div className="bg-amber-50 border border-amber-100 rounded-lg p-3.5 flex gap-2.5">
                   <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800 leading-relaxed">

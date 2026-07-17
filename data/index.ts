@@ -370,16 +370,7 @@ export const requirements: RequirementProps[] = [
   },
 ];
 
-export type RequestStatus =
-  | "submitted"
-  | "pending"
-  | "in_review"
-  | "approved"
-  | "released"
-  | "rejected";
-export const STAGES = [
-  "Submitted",
-  "In Review",
-  "Approved",
-  "Released",
-] as const;
+
+export type RequestStatus = "submitted" | "pending" | "released" | "rejected";
+
+export const STAGES = ["Submitted", "Pending", "Released"] as const;
