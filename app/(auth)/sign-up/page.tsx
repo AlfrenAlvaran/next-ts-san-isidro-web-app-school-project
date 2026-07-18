@@ -4,6 +4,8 @@ import Link from "next/link";
 import React, { Suspense } from "react";
 import Loading from "@/components/Loading";
 
+export const dynamic = "force-dynamic"
+
 const page = () => {
   return (
     <AuthShell
