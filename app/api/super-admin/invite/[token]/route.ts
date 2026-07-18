@@ -5,11 +5,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { token: string } },
+  { params }: { params: Promise<{ token: string }> },
 ) {
+  const {token} = await params;
   try {
     await connection();
-    const tokenHash = hashToken(params.token);
+    const tokenHash = hashToken(token);
     const invite = await Invite.findOne({ tokenHash, status: "PENDING" });
 
     if (!invite || invite.expiresAt < new Date()) {
