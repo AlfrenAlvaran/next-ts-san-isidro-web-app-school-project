@@ -39,7 +39,7 @@ import {
   IconProps,
   ShieldIcon,
 } from "@/components/icons";
-import { FileText, LayoutGrid, Users } from "lucide-react";
+import { FileText, IdCard, Landmark, LayoutGrid, LucideIcon, Users } from "lucide-react";
 import { ComponentType } from "react";
 
 export type ValueChild = {
@@ -244,3 +244,30 @@ export const AUTH_ERROR_CODES = {
 } as const;
 export type AuthErrorCode =
   (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
+
+// super admin
+
+// navbar
+export interface Tab {
+  href: string;
+  label: string;
+  icon: LucideIcon
+}
+
+export const tabs: Tab[] = [
+  {
+    href: "/overview",
+    label: "Overview",
+    icon: LayoutGrid,
+  },
+   {
+    href: "/staff",
+    label: "Staff & Admins",
+    icon: IdCard,
+  },
+   {
+    href: "/officials",
+    label: "Elected Officials",
+    icon: Landmark,
+  },
+];
