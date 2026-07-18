@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useInvite } from "@/hooks/userInvite";
 
+export const dynamic = 'force-dynamic'
 
 type Role = "admin" | "staff";
 
