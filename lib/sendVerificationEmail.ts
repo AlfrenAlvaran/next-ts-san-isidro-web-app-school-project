@@ -21,7 +21,7 @@ export async function sendVerificationEmail(
         <a
           href="${verifyUrl}"
           style="display: inline-block; margin: 16px 0; padding: 12px 24px;
-                 background-color: #B8860B; color: #0F172A; font-weight: 600;
+                 background-color: #B886p.0B; color: #0F172A; font-weight: 600;
                  text-decoration: none; border-radius: 999px; font-size: 14px;"
         >
           Verify Email
