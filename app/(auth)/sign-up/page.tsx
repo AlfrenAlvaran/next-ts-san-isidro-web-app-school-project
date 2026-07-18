@@ -1,7 +1,8 @@
 import { AuthShell } from "@/components/auth/AuthShell";
 import AuthForm from "@/components/auth/AuthForm";
 import Link from "next/link";
-import React from "react";
+import React, { Suspense } from "react";
+import Loading from "@/components/Loading";
 
 const page = () => {
   return (
@@ -22,7 +23,9 @@ const page = () => {
         </>
       }
     >
-      <AuthForm type="sign-up" />
+      <Suspense fallback={<Loading />}>
+        <AuthForm type="sign-up" />
+      </Suspense>
     </AuthShell>
   );
 };
