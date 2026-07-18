@@ -15,6 +15,7 @@ export async function connection() {
   if (!DATABASE) {
     throw new Error("Please define DATABASE environment variable");
   }
+  
 
   if (!cached.promise) {
     cached.promise = mongoose
