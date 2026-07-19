@@ -7,6 +7,7 @@ export async function sendVerificationEmail(
 ) {
   const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/verify-email?token=${token}`;
 
+  
   await transporter.sendMail({
     from: `"Brgy. San Isidro" <${process.env.GMAIL_USER}>`,
     to: email,
