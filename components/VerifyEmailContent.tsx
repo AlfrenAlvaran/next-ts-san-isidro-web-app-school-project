@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import axios from "axios";
 
 type Status = "loading" | "success" | "error";
 
@@ -42,20 +43,21 @@ export default function VerifyEmailContent() {
 
     const verify = async () => {
       try {
-        const res = await fetch(`/api/auth/verify-email?token=${token}`);
-        const data = await res.json();
-
-        if (!res.ok) {
-          setStatus("error");
-          setMessage(data.error || "Something went wrong.");
-          return;
-        }
+        const res = await axios.get("/api/auth/verify-email", {
+          params: { token },
+        });
 
         setStatus("success");
-        setMessage(data.message || "Your email has been verified.");
-      } catch {
+        setMessage(res.data.message || "Your email has been verified.");
+      } catch (err) {
         setStatus("error");
-        setMessage("Something went wrong. Please try again.");
+        if (axios.isAxiosError(err)) {
+          setMessage(
+            err.response?.data?.error || "Something went wrong. Please try again."
+          );
+        } else {
+          setMessage("Something went wrong. Please try again.");
+        }
       }
     };
 
