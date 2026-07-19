@@ -42,7 +42,7 @@ export default function VerifyEmailContent() {
 
     const verify = async () => {
       try {
-        const res = await fetch(`/api/auth/verify?token=${token}`);
+        const res = await fetch(`/api/auth/verify-email?token=${token}`);
         const data = await res.json();
 
         if (!res.ok) {
