@@ -25,23 +25,25 @@ const RequestsPage = () => {
   const [selected, setSelected] = useState<RequestItem | null>(null);
 
   const [actionLoading, setActionLoading] = useState<
-    "released" | "rejected" | null
+    "pending" | "released" | "rejected" | null
   >(null);
 
   const filters = ["all", "submitted", "pending", "released", "rejected"];
 
   async function handleUpdateStatus(
     id: string,
-    status: "released" | "rejected",
+    status: "pending" | "released" | "rejected",
   ) {
     setActionLoading(status);
     try {
       await updateStatus(id, status);
       setSelected(null);
       toast.success(
-        status === "released"
-          ? "Certificate approved and queued for release."
-          : "Request rejected.",
+        status === "pending"
+          ? "Request approved and moved to pending review."
+          : status === "released"
+            ? "Certificate released."
+            : "Request rejected.",
       );
     } catch {
       // updateStatus already shows an error toast on failure
@@ -380,8 +382,36 @@ const RequestsPage = () => {
               </div>
             </div>
             <div className="px-6 py-5 border-t border-slate-100 flex gap-3">
-              {selected.status === "submitted" ||
-              selected.status === "pending" ? (
+              {selected.status === "submitted" && (
+                <>
+                  <button
+                    onClick={() => handleUpdateStatus(selected.id, "rejected")}
+                    disabled={actionLoading !== null}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading === "rejected" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
+                    {actionLoading === "rejected" ? "Rejecting…" : "Reject"}
+                  </button>
+                  <button
+                    onClick={() => handleUpdateStatus(selected.id, "pending")}
+                    disabled={actionLoading !== null}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] hover:bg-[#B8860B] text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading === "pending" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    {actionLoading === "pending" ? "Approving…" : "Approve"}
+                  </button>
+                </>
+              )}
+
+              {selected.status === "pending" && (
                 <>
                   <button
                     onClick={() => handleUpdateStatus(selected.id, "rejected")}
@@ -405,10 +435,13 @@ const RequestsPage = () => {
                     ) : (
                       <Check className="w-4 h-4" />
                     )}
-                    {actionLoading === "released" ? "Approving…" : "Approve"}
+                    {actionLoading === "released" ? "Releasing…" : "Release"}
                   </button>
                 </>
-              ) : (
+              )}
+
+              {(selected.status === "released" ||
+                selected.status === "rejected") && (
                 <button
                   onClick={() => setSelected(null)}
                   className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
