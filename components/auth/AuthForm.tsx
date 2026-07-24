@@ -190,7 +190,7 @@ const AuthForm = ({ type }: { type: string }) => {
           headers: { "Content-Type": "multipart/form-data" },
         });
         toast.success(res.data.message || "Account created successfully!");
-        router.push("/verify-email");
+        router.push("/check-inbox-message");
       }
     } catch (error: any) {
       const message = error.response?.data?.error || "Something went wrong.";
@@ -239,6 +239,17 @@ const AuthForm = ({ type }: { type: string }) => {
           type="password"
           placeholder="••••••••"
         />
+
+        {type === "sign-in" && (
+          <div className="flex justify-end mt-1.5">
+            <Link
+              href="/forgot-password"
+              className="text-xs font-semibold text-[#B8860B] hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        )}
 
         {type === "sign-up" && password?.length > 0 && (
           <StrengthMeter strength={strength} />

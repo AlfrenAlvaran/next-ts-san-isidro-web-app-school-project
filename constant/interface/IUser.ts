@@ -18,7 +18,12 @@ export interface IUser extends Document {
   isVerified: boolean;
   verificationToken?: string | null;
   verificationTokenExpiry?: Date | null;
+  lastVerificationEmailSentAt?: Date | null
 
+  // Forgot Password
+  resetPasswordToken?: string
+  resetPasswordTokenExpiry?: Date | null
+  lastPasswordResetEmailSentAt?: Date |null
   createdAt: Date;
   updatedAt: Date;
 

@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
-    const token = req.nextUrl.searchParams.get("token");
+    const token = req.nextUrl.searchParams.get("token")?.trim();
 
     if (!token) {
       return NextResponse.json(
@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
 
     await connection();
 
-    const user = await UserModel.findOne({ verificationToken: token });
+    const user = await UserModel.findOne({ verificationToken: token }).select(
+      "+verificationToken +verificationTokenExpiry",
+    );
 
     if (!user) {
       return NextResponse.json(
@@ -37,6 +39,12 @@ export async function GET(req: NextRequest) {
       user.verificationTokenExpiry &&
       user.verificationTokenExpiry.getTime() < Date.now()
     ) {
+      // Clear the dead token so a stale one never lingers in the DB —
+      // the user needs a fresh one via /resend-verification anyway.
+      user.verificationToken = undefined;
+      user.verificationTokenExpiry = undefined;
+      await user.save();
+
       return NextResponse.json(
         {
           error:

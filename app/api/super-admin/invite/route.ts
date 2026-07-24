@@ -1,87 +1,110 @@
-import { NextRequest, NextResponse } from "next/server";
+import { UserRole } from "@/constant/types";
 import { connection } from "@/lib/database";
-import UserModel from "@/models/UserModel";
-import { Invite } from "@/models/InviteModel";
 import { createInviteToken } from "@/lib/invite-token";
-import { sendMail } from "@/lib/mailer";
-import { inviteEmailHtml } from "@/lib/mail/InviteEmailHTML";
-
-const ROLE_TITLES: Record<string, string> = { ADMIN: "Admin", STAFF: "Staff" };
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+import { buildInviteEmail } from "@/lib/mail/buildInviteEmail";
+import { transporter } from "@/lib/mailer";
+import { Invite } from "@/models/InviteModel";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    await connection();
+    const { name, email, role, barangay, inviteBy } = await req.json();
+    const trimmedEmail = email?.trim().toLowerCase();
+    const trimmedName = name?.trim();
 
-    const { email, role, name, barangay = "San Isidro" } = await req.json();
-    if (!email || !role) {
+    if (!trimmedName || !trimmedEmail) {
       return NextResponse.json(
-        { error: "Email & Role are required" },
+        { error: "Name and email are required." },
         { status: 400 },
       );
     }
 
-    const normalizedEmail = String(email).toLowerCase().trim();
+    if (!["ADMIN", "STAFF", "RESIDENT"].includes(role)) {
+      return NextResponse.json({ error: "Invalid role." }, { status: 400 });
+    }
 
-    const existingUser = await UserModel.findOne({ email: normalizedEmail });
-    if (existingUser) {
+    await connection();
+
+    const existingInvite = await Invite.findOne({ email: trimmedEmail });
+    if (existingInvite && existingInvite.status === "PENDING") {
       return NextResponse.json(
-        { error: "This person already has an active account." },
+        {
+          error: `${trimmedEmail} already has a pending invite. Use resend instead.`,
+        },
         { status: 409 },
       );
     }
-
-    const existingInvite = await Invite.findOne({ email });
-    if (
-      existingInvite?.status === "PENDING" &&
-      existingInvite.expiresAt > new Date()
-    ) {
+    if (existingInvite && existingInvite.status === "ACCEPTED") {
       return NextResponse.json(
-        { error: "An invite is already pending for this email." },
+        { error: `${trimmedEmail} already has an account.` },
         { status: 409 },
       );
     }
 
     const { rawToken, tokenHash, expiresAt } = createInviteToken();
 
-    const invite = await Invite.findOneAndUpdate(
-      { email },
-      {
-        email,
-        role,
-        name,
-        barangay,
-        status: "PENDING",
-        tokenHash,
-        expiresAt,
-        $unset: { userId: "", acceptedAt: "" },
-      },
-      {
-        upsert: true,
-        new: true,
-      },
-    );
+    const invite = existingInvite
+      ? Object.assign(existingInvite, {
+          name: trimmedName,
+          role,
+          barangay,
+          status: "PENDING",
+          tokenHash,
+          expiresAt,
+          inviteBy,
+          userId: undefined,
+          acceptedAt: undefined,
+        })
+      : new Invite({
+          name: trimmedName,
+          email: trimmedEmail,
+          role: role as UserRole,
+          barangay,
+          status: "PENDING",
+          tokenHash,
+          expiresAt,
+          inviteBy,
+        });
 
-    const acceptUrl = `${BASE_URL}/accept-invite?token=${rawToken}`;
+    await invite.save();
 
-    await sendMail({
-      to: email,
-      subject: "You're invited to Barangay San Isidro Portal",
-      html: inviteEmailHtml({
-        name,
-        roleTitle: ROLE_TITLES[role] ?? role,
-        barangay,
-        acceptUrl,
-      }),
+    const inviteUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/accept-invite?token=${rawToken}`;
+
+    const message = buildInviteEmail({
+      to: trimmedEmail,
+      name: trimmedName,
+      role,
+      inviteUrl,
+    });
+
+    await transporter.sendMail({
+      from:
+        process.env.SMTP_FROM ??
+        '"San Isidro Staff Portal" <no-reply@sanisidro.gov.ph>',
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
     });
 
     return NextResponse.json({
-      invite: { id: invite._id, email: invite.email, status: invite.status },
+      ok: true,
+      account: {
+        id: invite._id.toString(),
+        name: trimmedName,
+        email: trimmedEmail,
+        role,
+        status: "pending",
+        joined: "Invited just now",
+      },
     });
   } catch (error) {
-    console.error("[POST /api/super-admin/invite]", error);
+    console.error("Failed to send invite email:", error);
     return NextResponse.json(
-      { error: "Failed to send invite." },
+      {
+        error:
+          "Couldn't send the invite email. Check SMTP settings and try again.",
+      },
       { status: 500 },
     );
   }

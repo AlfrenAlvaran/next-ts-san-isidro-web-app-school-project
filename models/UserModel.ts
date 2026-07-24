@@ -77,6 +77,30 @@ const UserSchema = new Schema<IUser, IUserModel>(
       default: null,
       select: false,
     },
+
+    lastVerificationEmailSentAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+
+    resetPasswordToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
+    resetPasswordTokenExpiry: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+
+    lastPasswordResetEmailSentAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   {
     timestamps: true,
