@@ -67,8 +67,6 @@ export async function PATCH(
 
     const nextStage = stageForStatus(parsed.data.status, existing.stage);
 
-    // Build the update object first so we can conditionally add
-    // payment fields only when approving (submitted -> pending).
     const updates: Record<string, unknown> = {
       status: parsed.data.status,
       stage: nextStage,
@@ -103,7 +101,7 @@ export async function PATCH(
     }
 
     const updated = await RequestModel.findByIdAndUpdate(id, updates, {
-      returnDocument: "after",
+      new: true,
     }).populate({
       path: "profile_id",
       populate: { path: "user", select: "fullName email" },
@@ -120,63 +118,41 @@ export async function PATCH(
       | { fullName?: string; email?: string }
       | undefined;
 
-    console.log(
-      "PATCH status:",
-      parsed.data.status,
-      "residentUser:",
-      residentUser,
-    );
-
-    // Fire-and-forget: don't block the response on email delivery.
     if (
       (parsed.data.status === "released" ||
         parsed.data.status === "rejected") &&
       residentUser?.email
     ) {
-      sendRequestStatusUpdateEmail({
-        to: residentUser.email,
-        recipientName: residentUser.fullName ?? "Resident",
-        referenceNo: updated.referenceNo,
-        serviceTitle: updated.serviceTitle,
-        status: parsed.data.status,
-      }).catch((mailErr) =>
-        console.error("Failed to send status update email:", mailErr),
-      );
+      try {
+        await sendRequestStatusUpdateEmail({
+          to: residentUser.email,
+          recipientName: residentUser.fullName ?? "Resident",
+          referenceNo: updated.referenceNo,
+          serviceTitle: updated.serviceTitle,
+          status: parsed.data.status,
+        });
+      } catch (mailErr) {
+        console.error("Failed to send status update email:", mailErr);
+      }
     }
 
     if (parsed.data.status === "pending" && residentUser?.email) {
-      const paymentInfoUrl = (extra: Record<string, string | undefined>) => {
-        const params = new URLSearchParams();
-        params.set("ref", updated.referenceNo);
-        params.set("service", updated.serviceTitle);
-        if (updated.fee) params.set("amount", updated.fee);
-        Object.entries(extra).forEach(([k, v]) => v && params.set(k, v));
-        return `${process.env.APP_URL}/payment-info?${params.toString()}`;
-      };
-
-      sendPaymentRequestEmail({
-        to: residentUser.email,
-        recipientName: residentUser.fullName ?? "Resident",
-        referenceNo: updated.referenceNo,
-        serviceTitle: updated.serviceTitle,
-        amountLabel: updated.fee,
-        payOnlineUrl:
-          generatedPaymentLink ?? updated.paymentLink ?? paymentInfoUrl({}),
-        payInPersonUrl: paymentInfoUrl({
-          link: generatedPaymentLink ?? updated.paymentLink ?? undefined,
-        }),
-      })
-        .then(() =>
-          console.log(`Payment email sent to ${residentUser.email}`),
-        )
-        .catch((mailErr) =>
-          console.error("Failed to send payment request email:", mailErr),
-        );
-    } else if (parsed.data.status === "pending") {
-      console.warn(
-        "Skipped payment email: no residentUser.email found",
-        residentUser,
-      );
+      try {
+        await sendPaymentRequestEmail({
+          to: residentUser.email,
+          recipientName: residentUser.fullName ?? "Resident",
+          referenceNo: updated.referenceNo,
+          serviceTitle: updated.serviceTitle,
+          amountLabel: updated.fee,
+          payOnlineUrl:
+            generatedPaymentLink ??
+            updated.paymentLink ??
+            `${process.env.APP_URL}/payment-info`,
+          payInPersonUrl: `${process.env.APP_URL}/payment-info`,
+        });
+      } catch (mailErr) {
+        console.error("Failed to send payment request email:", mailErr);
+      }
     }
 
     return NextResponse.json(

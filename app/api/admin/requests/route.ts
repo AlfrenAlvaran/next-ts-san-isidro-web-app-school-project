@@ -32,6 +32,8 @@ export async function GET() {
       purpose: r.purpose,
       stage: r.stage,
       status: r.status,
+      paymentStatus: r.paymentStatus,
+      paymentLink: r.paymentLink ?? null,
       submitted: r.createdAt.toISOString().split("T")[0],
       residentName: (r.profile_id as any)?.user?.fullName ?? "Unknown",
     }));

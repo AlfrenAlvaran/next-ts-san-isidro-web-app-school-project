@@ -13,11 +13,26 @@ import {
   X,
   Check,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import { CERT_TYPES } from "@/constant";
 
+function PaymentPill({ status }: { status: "unpaid" | "paid" }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full ${
+        status === "paid"
+          ? "bg-emerald-50 text-emerald-600"
+          : "bg-amber-50 text-amber-600"
+      }`}
+    >
+      {status === "paid" ? "Paid" : "Unpaid"}
+    </span>
+  );
+}
+
 const RequestsPage = () => {
-  const { requests, loading, updateStatus } = useRequests("admin");
+  const { requests, loading, updateStatus, markPayment } = useRequests("admin");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -25,9 +40,8 @@ const RequestsPage = () => {
   const [selected, setSelected] = useState<RequestItem | null>(null);
 
   const [actionLoading, setActionLoading] = useState<
-    "pending" | "released" | "rejected" | null
+    "pending" | "released" | "rejected" | "payment" | null
   >(null);
-
   const filters = ["all", "submitted", "pending", "released", "rejected"];
 
   async function handleUpdateStatus(
@@ -36,17 +50,33 @@ const RequestsPage = () => {
   ) {
     setActionLoading(status);
     try {
-      await updateStatus(id, status);
+      const updated = await updateStatus(id, status);
       setSelected(null);
       toast.success(
         status === "pending"
-          ? "Request approved and moved to pending review."
+          ? "Request approved — payment instructions emailed to the resident."
           : status === "released"
             ? "Certificate released."
             : "Request rejected.",
       );
+      return updated;
     } catch {
-      // updateStatus already shows an error toast on failure
+     
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleMarkPaid(id: string) {
+    setActionLoading("payment");
+    try {
+      const updated = await markPayment(id, "paid");
+      setSelected((prev) =>
+        prev ? { ...prev, paymentStatus: updated } : prev,
+      );
+      toast.success("Marked as paid.");
+    } catch {
+      // markPayment already shows an error toast
     } finally {
       setActionLoading(null);
     }
@@ -86,6 +116,7 @@ const RequestsPage = () => {
       "Purpose",
       "Submitted",
       "Status",
+      "Payment",
     ];
     const rows = filtered.map((r) => [
       r.referenceNo,
@@ -94,6 +125,7 @@ const RequestsPage = () => {
       r.purpose,
       r.submitted,
       r.status,
+      r.paymentStatus,
     ]);
     const csv = [header, ...rows]
       .map((row) =>
@@ -256,6 +288,9 @@ const RequestsPage = () => {
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">
                 Status
               </th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">
+                Payment
+              </th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
@@ -263,7 +298,7 @@ const RequestsPage = () => {
             {loading && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-5 py-16 text-center text-sm text-slate-400"
                 >
                   Loading requests…
@@ -295,6 +330,13 @@ const RequestsPage = () => {
                   <td className="px-5 py-3.5">
                     <StatusPill status={r.status} />
                   </td>
+                  <td className="px-5 py-3.5">
+                    {r.status === "pending" || r.status === "released" ? (
+                      <PaymentPill status={r.paymentStatus} />
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
                   <td className="px-5 py-3.5 text-right">
                     <button className="w-7 h-7 rounded-md hover:bg-slate-100 inline-flex items-center justify-center">
                       <Eye className="w-3.5 h-3.5 text-slate-400" />
@@ -305,7 +347,7 @@ const RequestsPage = () => {
             {!loading && filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-5 py-16 text-center text-sm text-slate-400"
                 >
                   No requests match your filters.
@@ -370,6 +412,55 @@ const RequestsPage = () => {
                 </p>
               </div>
 
+              {/* Payment status — only relevant once approved */}
+              {(selected.status === "pending" ||
+                selected.status === "released") && (
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-slate-400" />
+                      <div>
+                        <p className="text-xs text-slate-500">Payment status</p>
+                        <p
+                          className={`text-sm font-bold ${
+                            selected.paymentStatus === "paid"
+                              ? "text-emerald-600"
+                              : "text-amber-600"
+                          }`}
+                        >
+                          {selected.paymentStatus === "paid"
+                            ? "Paid"
+                            : "Unpaid"}
+                        </p>
+                      </div>
+                    </div>
+                    {selected.paymentStatus === "unpaid" && (
+                      <button
+                        onClick={() => handleMarkPaid(selected.id)}
+                        disabled={actionLoading !== null}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 underline disabled:opacity-50"
+                      >
+                        {actionLoading === "payment" && (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        )}
+                        Mark as paid (in person)
+                      </button>
+                    )}
+                  </div>
+                  {selected.paymentLink &&
+                    selected.paymentStatus === "unpaid" && (
+                      <a
+                        href={selected.paymentLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-block text-xs font-semibold text-[#B8860B] hover:underline"
+                      >
+                        View online payment link →
+                      </a>
+                    )}
+                </div>
+              )}
+
               <div className="space-y-3">
                 <Field
                   label="Requesting resident"
@@ -381,9 +472,9 @@ const RequestsPage = () => {
                 <Field label="Reference number" value={selected.referenceNo} />
               </div>
             </div>
-            <div className="px-6 py-5 border-t border-slate-100 flex gap-3">
+            <div className="px-6 py-5 border-t border-slate-100 flex flex-col gap-3">
               {selected.status === "submitted" && (
-                <>
+                <div className="flex gap-3">
                   <button
                     onClick={() => handleUpdateStatus(selected.id, "rejected")}
                     disabled={actionLoading !== null}
@@ -408,35 +499,55 @@ const RequestsPage = () => {
                     )}
                     {actionLoading === "pending" ? "Approving…" : "Approve"}
                   </button>
-                </>
+                </div>
               )}
 
               {selected.status === "pending" && (
                 <>
-                  <button
-                    onClick={() => handleUpdateStatus(selected.id, "rejected")}
-                    disabled={actionLoading !== null}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {actionLoading === "rejected" ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <X className="w-4 h-4" />
-                    )}
-                    {actionLoading === "rejected" ? "Rejecting…" : "Reject"}
-                  </button>
-                  <button
-                    onClick={() => handleUpdateStatus(selected.id, "released")}
-                    disabled={actionLoading !== null}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0F172A] hover:bg-[#B8860B] text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {actionLoading === "released" ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Check className="w-4 h-4" />
-                    )}
-                    {actionLoading === "released" ? "Releasing…" : "Release"}
-                  </button>
+                  {selected.paymentStatus === "unpaid" && (
+                    <p className="text-[11px] text-amber-600 bg-amber-50 rounded-md px-3 py-2">
+                      Payment is still unpaid. You can release anyway for
+                      waived/exempted cases.
+                    </p>
+                  )}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() =>
+                        handleUpdateStatus(selected.id, "rejected")
+                      }
+                      disabled={actionLoading !== null}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {actionLoading === "rejected" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <X className="w-4 h-4" />
+                      )}
+                      {actionLoading === "rejected" ? "Rejecting…" : "Reject"}
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleUpdateStatus(selected.id, "released")
+                      }
+                      disabled={actionLoading !== null}
+                      className={`flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                        selected.paymentStatus === "unpaid"
+                          ? "bg-white border border-amber-300 text-amber-700 hover:bg-amber-50"
+                          : "bg-[#0F172A] hover:bg-[#B8860B] text-white"
+                      }`}
+                    >
+                      {actionLoading === "released" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                      {actionLoading === "released"
+                        ? "Releasing…"
+                        : selected.paymentStatus === "unpaid"
+                          ? "Release anyway"
+                          : "Release"}
+                    </button>
+                  </div>
                 </>
               )}
 

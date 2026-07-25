@@ -9,6 +9,11 @@ export interface IRequest {
   purpose: string;
   stage: number;
   status: "submitted" | "pending" | "released" | "rejected";
+  paymentStatus: "unpaid" | "paid";
+  paymentLink?: string | null;
+  paymongoLinkId?: string | null;
+  paymentMethod?: "online" | "manual" | null;
+  hitpayRequestId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,8 +37,19 @@ const RequestSchema = new Schema<IRequest>(
       enum: ["submitted", "pending", "released", "rejected"],
       default: "submitted",
     },
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "paid"],
+      default: "unpaid",
+    },
+    paymentLink: { type: String, default: null },
+    paymongoLinkId: { type: String, default: null, index: true },
+
+    // HitPay
+    paymentMethod: { type: String, enum: ["online", "manual"], default: null },
+    hitpayRequestId: { type: String, default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default models.Request || model<IRequest>("Request", RequestSchema);

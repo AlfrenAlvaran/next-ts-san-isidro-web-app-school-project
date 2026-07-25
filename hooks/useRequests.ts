@@ -13,9 +13,11 @@ export type RequestItem = {
   fee: string;
   purpose: string;
   stage: number;
-  status: RequestStatus; // "pending" | "released" | "rejected"
+  status: RequestStatus; // "submitted" | "pending" | "released" | "rejected"
   submitted: string; // "YYYY-MM-DD" per your API's toISOString().split("T")[0]
   residentName?: string; // present on admin-scoped endpoint only
+  paymentStatus: "unpaid" | "paid";
+  paymentLink?: string | null;
 };
 
 const fetcher = (url: string) =>
@@ -40,6 +42,10 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     mutate,
   } = useSWR<RequestItem[]>(endpoint, fetcher);
 
+  // `list` needs to exist before any function below closes over it.
+  const list = requests ?? [];
+  const today = startOfDay(new Date());
+
   const createRequest = async (payload: {
     serviceTitle: string;
     category: string;
@@ -49,7 +55,7 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     try {
       const res = await axios.post("/api/requests", payload);
       const newRequest: RequestItem = res.data.request;
-      mutate([newRequest, ...(requests ?? [])], false);
+      mutate([newRequest, ...list], false);
       toast.success(`Request submitted — Ref ${newRequest.referenceNo}`);
       return newRequest;
     } catch (error) {
@@ -69,10 +75,12 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     try {
       const res = await axios.patch(`/api/admin/requests/${id}`, { status });
       const updated: RequestItem = res.data.request;
+      // optimistic local update, no revalidation...
       mutate(
-        (list ?? []).map((r) => (r.id === id ? updated : r)),
+        list.map((r) => (r.id === id ? updated : r)),
         false,
       );
+      // ...then re-fetch from the server to reconcile (e.g. stage, paymentLink)
       mutate();
       return updated;
     } catch (error) {
@@ -85,8 +93,29 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     }
   };
 
-  const list = requests ?? [];
-  const today = startOfDay(new Date());
+  const markPayment = async (id: string, paymentStatus: "unpaid" | "paid") => {
+    try {
+      const res = await axios.patch(`/api/admin/requests/${id}/payment`, {
+        paymentStatus,
+      });
+      const { paymentStatus: updated } = res.data as {
+        id: string;
+        paymentStatus: "unpaid" | "paid";
+      };
+      mutate(
+        list.map((r) => (r.id === id ? { ...r, paymentStatus: updated } : r)),
+        false,
+      );
+      return updated;
+    } catch (error) {
+      const message =
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? error.response.data.error
+          : "Failed to update payment. Please try again.";
+      toast.error(message);
+      throw error;
+    }
+  };
 
   const pendingCount = useMemo(
     () => list.filter((r) => r.status === ("pending" as RequestStatus)).length,
@@ -202,5 +231,6 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     weekOverWeekChange,
     recent,
     updateStatus,
+    markPayment, // NEW
   };
 }

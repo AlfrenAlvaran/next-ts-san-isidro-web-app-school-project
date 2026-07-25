@@ -159,7 +159,7 @@ const Navbar = () => {
                       <ChevronDown open={activeDropdown === link.label} />
                     )}
                     <span
-                      className={`pointer-events-none absolute left-3.5 right-3.5 -bottom-[1px] h-[2px] rounded-full bg-[#0F172A] transition-transform duration-300 ease-out origin-left ${
+                      className={`pointer-events-none absolute left-3.5 right-3.5 -bottom-px h-0.5 rounded-full bg-[#0F172A] transition-transform duration-300 ease-out origin-left ${
                         active
                           ? "scale-x-100"
                           : "scale-x-0 group-hover:scale-x-100"
