@@ -212,7 +212,7 @@ export type BarangayFactProps = {
 };
 
 export const barangayFacts: BarangayFactProps[] = [
-  { label: "Land Area", value: "2.4 km²" },
+  { label: "Land Area", value: "4.42 km²" },
   { label: "Population", value: "12,400+" },
   { label: "Households", value: "3,100+" },
   { label: "Puroks", value: "8 zones" },

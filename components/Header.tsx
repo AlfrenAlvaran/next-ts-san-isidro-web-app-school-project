@@ -7,12 +7,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Label } from "recharts";
 
 const NAV_LINKS = [
   { href: "/home", label: "Home" },
   { href: "/request", label: "Request" },
-  { href: "/profile", label: "Profile" },
+  // { href: "/profile", label: "Profile" },
   { href: "/track", label: "Track" },
+  { href: "/first-time-job-seeker", label: "First-Time Job Seeker" },
 ];
 
 const Header = () => {
