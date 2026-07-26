@@ -39,7 +39,7 @@ async function markRequestPaid(query: Record<string, unknown>) {
   return RequestModel.findOneAndUpdate(
     query,
     { paymentStatus: "paid" },
-    { new: true }
+    { returnDocument: "after" }
   );
 }
 
