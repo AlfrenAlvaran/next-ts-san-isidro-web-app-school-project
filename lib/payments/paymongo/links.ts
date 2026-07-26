@@ -8,7 +8,7 @@ export async function createPaymentLink(params: {
   idempotencyKey: string;
 }): Promise<PaymongoLink> {
   if (params.amountCentavos < 100) {
-    throw new Error("PayMongo payment links require a minimum amount of ₱100.00");
+    throw new Error("PayMongo payment links require a minimum amount of ₱1.00");
   }
 
   const res = await paymongoRequest<{ data: PaymongoLink }>("/links", {

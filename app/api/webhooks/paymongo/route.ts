@@ -49,7 +49,14 @@ export async function POST(req: NextRequest) {
 
   if (type === "link.payment.paid") {
     const resource = event.data.attributes.data;
+
+    // TEMP DEBUG — remove after diagnosing
+    console.log("Webhook resource payload:", JSON.stringify(resource, null, 2));
+
     const linkId: string | undefined = resource?.attributes?.link_id ?? resource?.id;
+
+    // TEMP DEBUG — remove after diagnosing
+    console.log("Extracted linkId:", linkId);
 
     if (linkId) {
       const updated = await RequestModel.findOneAndUpdate(
@@ -59,6 +66,13 @@ export async function POST(req: NextRequest) {
       );
       if (!updated) {
         console.warn(`Webhook: no request found for PayMongo link ${linkId}`);
+
+        // TEMP DEBUG — remove after diagnosing
+        const sample = await RequestModel.find({ paymongoLinkId: { $exists: true, $ne: null } })
+          .select("referenceNo paymongoLinkId")
+          .limit(5)
+          .lean();
+        console.log("Sample stored paymongoLinkId values:", sample);
       }
     }
   }
