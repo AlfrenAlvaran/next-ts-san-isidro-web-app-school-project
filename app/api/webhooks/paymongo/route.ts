@@ -7,6 +7,42 @@ import WebhookEventModel from "@/models/WebhookEventModel";
 
 export const runtime = "nodejs";
 
+const PAID_EVENT_TYPES = new Set([
+  "link.payment.paid",
+  "checkout_session.payment.paid",
+]);
+
+function extractIdentifiers(resource: any) {
+  // Link resource (link.payment.paid): { id: "link_...", type: "link", attributes: { remarks, reference_number, payments: [{ data: { attributes: { external_reference_number, description } } }] } }
+  // Checkout Session resource (checkout_session.payment.paid): shape may vary; be defensive.
+  const linkId: string | undefined =
+    resource?.type === "link" ? resource?.id : resource?.attributes?.link_id;
+
+  const firstPayment =
+    resource?.attributes?.payments?.[0]?.data ??
+    resource?.attributes?.payments?.[0] ??
+    null;
+
+  const remarks: string | undefined =
+    resource?.attributes?.remarks ??
+    firstPayment?.attributes?.description ??
+    resource?.attributes?.description;
+
+  const referenceNumber: string | undefined =
+    resource?.attributes?.reference_number ??
+    firstPayment?.attributes?.external_reference_number;
+
+  return { linkId, remarks, referenceNumber };
+}
+
+async function markRequestPaid(query: Record<string, unknown>) {
+  return RequestModel.findOneAndUpdate(
+    query,
+    { paymentStatus: "paid" },
+    { new: true }
+  );
+}
+
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const sigHeader = req.headers.get("paymongo-signature") ?? "";
@@ -17,8 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
-  const live = process.env.NODE_ENV === "production";
-  if (!verifyPaymongoSignature(rawBody, sigHeader, secret, { live })) {
+  if (!verifyPaymongoSignature(rawBody, sigHeader, secret)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -47,33 +82,36 @@ export async function POST(req: NextRequest) {
     throw err;
   }
 
-  if (type === "link.payment.paid") {
+  if (PAID_EVENT_TYPES.has(type)) {
     const resource = event.data.attributes.data;
 
-    // TEMP DEBUG — remove after diagnosing
-    console.log("Webhook resource payload:", JSON.stringify(resource, null, 2));
+    // TEMP DEBUG — remove once confirmed working
+    console.log(`Webhook resource payload (${type}):`, JSON.stringify(resource, null, 2));
 
-    const linkId: string | undefined = resource?.attributes?.link_id ?? resource?.id;
+    const { linkId, remarks, referenceNumber } = extractIdentifiers(resource);
 
-    // TEMP DEBUG — remove after diagnosing
-    console.log("Extracted linkId:", linkId);
+    // TEMP DEBUG — remove once confirmed working
+    console.log("Extracted identifiers:", { linkId, remarks, referenceNumber });
+
+    let updated = null;
 
     if (linkId) {
-      const updated = await RequestModel.findOneAndUpdate(
-        { paymongoLinkId: linkId },
-        { paymentStatus: "paid" },
-        { new: true }
-      );
-      if (!updated) {
-        console.warn(`Webhook: no request found for PayMongo link ${linkId}`);
+      updated = await markRequestPaid({ paymongoLinkId: linkId });
+    }
+    if (!updated && remarks) {
+      updated = await markRequestPaid({ referenceNo: remarks });
+    }
+    if (!updated && referenceNumber) {
+      updated = await markRequestPaid({ referenceNo: referenceNumber });
+    }
 
-        // TEMP DEBUG — remove after diagnosing
-        const sample = await RequestModel.find({ paymongoLinkId: { $exists: true, $ne: null } })
-          .select("referenceNo paymongoLinkId")
-          .limit(5)
-          .lean();
-        console.log("Sample stored paymongoLinkId values:", sample);
-      }
+    if (!updated) {
+      console.warn("Webhook: no request found to mark paid", {
+        type,
+        linkId,
+        remarks,
+        referenceNumber,
+      });
     }
   }
 

@@ -21,10 +21,6 @@ export function verifyPaymongoSignature(
     .digest("hex");
 
   const expectedBuf = Buffer.from(expected);
-
-  // Check whichever signature component(s) PayMongo actually sent.
-  // The secret you configured determines which one will actually match —
-  // no need to guess "live vs test" from NODE_ENV.
   const candidates = [parts.te, parts.li].filter(Boolean) as string[];
 
   return candidates.some((provided) => {
