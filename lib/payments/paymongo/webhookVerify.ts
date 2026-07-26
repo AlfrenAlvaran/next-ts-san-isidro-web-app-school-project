@@ -3,8 +3,7 @@ import crypto from "crypto";
 export function verifyPaymongoSignature(
   rawBody: string,
   signatureHeader: string,
-  webhookSecret: string,
-  { live = false }: { live?: boolean } = {}
+  webhookSecret: string
 ): boolean {
   const parts = Object.fromEntries(
     signatureHeader.split(",").map((p) => {
@@ -21,10 +20,18 @@ export function verifyPaymongoSignature(
     .update(signedPayload)
     .digest("hex");
 
-  const provided = live ? parts.li : parts.te ?? parts.li;
-  if (!provided) return false;
+  const expectedBuf = Buffer.from(expected);
 
-  const a = Buffer.from(expected);
-  const b = Buffer.from(provided);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  // Check whichever signature component(s) PayMongo actually sent.
+  // The secret you configured determines which one will actually match —
+  // no need to guess "live vs test" from NODE_ENV.
+  const candidates = [parts.te, parts.li].filter(Boolean) as string[];
+
+  return candidates.some((provided) => {
+    const providedBuf = Buffer.from(provided);
+    return (
+      expectedBuf.length === providedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, providedBuf)
+    );
+  });
 }
