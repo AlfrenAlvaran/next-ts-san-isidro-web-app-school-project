@@ -30,7 +30,7 @@ export async function sendPaymentRequestEmail({
     </p>
     <div style="margin:24px 0;text-align:center;">
      
-      <a href="${payOnlineUrl}"
+      <a href="${payInPersonUrl}"
         style="display:inline-block;border:1px solid #0F172A;color:#0F172A;padding:12px 22px;
         border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 6px 10px;">
         Pay Online
