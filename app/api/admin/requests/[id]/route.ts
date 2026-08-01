@@ -67,7 +67,6 @@ export async function PATCH(
 
     const nextStage = stageForStatus(parsed.data.status, existing.stage);
 
-   
     const updates: Record<string, unknown> = {
       status: parsed.data.status,
       stage: nextStage,
@@ -83,6 +82,7 @@ export async function PATCH(
     }
 
     let generatedPaymentLink: string | null = null;
+    let paymentLinkError: string | null = null;
 
     if (parsed.data.status === "pending" && !existing.paymentLink) {
       const amountCentavos = feeToCentavos(existing.fee);
@@ -96,12 +96,14 @@ export async function PATCH(
             idempotencyKey: existing.referenceNo,
           });
           generatedPaymentLink = link.attributes.checkout_url;
-          updates.paymentLink = link.attributes.checkout_url;
+          updates.paymentLink = generatedPaymentLink;
           updates.paymongoLinkId = link.id;
         } catch (linkErr) {
           if (linkErr instanceof PaymongoError) {
+            paymentLinkError = linkErr.message;
             console.error(`PayMongo error [${linkErr.code}]:`, linkErr.message);
           } else {
+            paymentLinkError = "Failed to generate payment link.";
             console.error("Failed to create PayMongo link:", linkErr);
           }
         }
@@ -109,8 +111,11 @@ export async function PATCH(
       updates.paymentStatus = "unpaid";
     }
 
+    // NOTE: Mongoose uses `new`, not the native driver's `returnDocument`.
+    // Without `new: true`, `updated` would reflect pre-update values
+    // (e.g. a just-generated paymentLink would appear missing).
     const updated = await RequestModel.findByIdAndUpdate(id, updates, {
-      returnDocument: "after",
+      new: true,
     }).populate({
       path: "profile_id",
       populate: { path: "user", select: "fullName email" },
@@ -150,34 +155,42 @@ export async function PATCH(
       );
     }
 
-    if (parsed.data.status === "pending" && residentUser?.email) {
-      const paymentInfoUrl = (extra: Record<string, string | undefined>) => {
-        const params = new URLSearchParams();
-        params.set("ref", updated.referenceNo);
-        params.set("service", updated.serviceTitle);
-        if (updated.fee) params.set("amount", updated.fee);
-        Object.entries(extra).forEach(([k, v]) => v && params.set(k, v));
-        return `${process.env.NEXT_PUBLIC_APP_URL}/payment-info?${params.toString()}`;
-      };
+    // Only send the payment email if we actually have a usable link
+    // (either just generated, or already existing on the request).
+    const effectivePaymentLink = generatedPaymentLink ?? updated.paymentLink;
 
-      sendPaymentRequestEmail({
-        to: residentUser.email,
-        recipientName: residentUser.fullName ?? "Resident",
-        referenceNo: updated.referenceNo,
-        serviceTitle: updated.serviceTitle,
-        amountLabel: updated.fee,
-        payOnlineUrl:
-          generatedPaymentLink ?? updated.paymentLink ?? paymentInfoUrl({}),
-        payInPersonUrl: paymentInfoUrl({
-          link: generatedPaymentLink ?? updated.paymentLink ?? undefined,
-        }),
-      })
-        .then(() =>
-          console.log(`Payment email sent to ${residentUser.email}`),
-        )
-        .catch((mailErr) =>
-          console.error("Failed to send payment request email:", mailErr),
+    if (parsed.data.status === "pending" && residentUser?.email) {
+      if (effectivePaymentLink) {
+        const paymentInfoUrl = (extra: Record<string, string | undefined>) => {
+          const params = new URLSearchParams();
+          params.set("ref", updated.referenceNo);
+          params.set("service", updated.serviceTitle);
+          if (updated.fee) params.set("amount", updated.fee);
+          Object.entries(extra).forEach(([k, v]) => v && params.set(k, v));
+          return `${process.env.NEXT_PUBLIC_APP_URL}/payment-info?${params.toString()}`;
+        };
+
+        sendPaymentRequestEmail({
+          to: residentUser.email,
+          recipientName: residentUser.fullName ?? "Resident",
+          referenceNo: updated.referenceNo,
+          serviceTitle: updated.serviceTitle,
+          amountLabel: updated.fee,
+          payOnlineUrl: effectivePaymentLink,
+          payInPersonUrl: paymentInfoUrl({ link: effectivePaymentLink }),
+        })
+          .then(() =>
+            console.log(`Payment email sent to ${residentUser.email}`),
+          )
+          .catch((mailErr) =>
+            console.error("Failed to send payment request email:", mailErr),
+          );
+      } else {
+        console.warn(
+          "Skipped payment email: no payment link available",
+          { referenceNo: updated.referenceNo, paymentLinkError },
         );
+      }
     } else if (parsed.data.status === "pending") {
       console.warn(
         "Skipped payment email: no residentUser.email found",
@@ -197,7 +210,7 @@ export async function PATCH(
           stage: updated.stage,
           status: updated.status,
           paymentStatus: updated.paymentStatus,
-          paymentLink: updated.paymentLink,
+          paymentLink: effectivePaymentLink ?? null,
           submitted: updated.createdAt.toISOString().split("T")[0],
           pickupDate: updated.pickupDate
             ? updated.pickupDate.toISOString()
@@ -205,6 +218,7 @@ export async function PATCH(
           overdueNotice: updated.overdueNotice ?? null,
           residentName: residentUser?.fullName ?? "Unknown",
         },
+        ...(paymentLinkError ? { paymentLinkError } : {}),
       },
       { status: 200 },
     );
