@@ -141,7 +141,7 @@ const Sidebar = () => {
               View profile
             </Link>
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => signOut({ callbackUrl: "/sign-in" })}
               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-colors"
             >
               <LogOut className="w-4 h-4" />
