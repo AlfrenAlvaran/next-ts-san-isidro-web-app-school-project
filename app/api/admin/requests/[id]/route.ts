@@ -67,15 +67,12 @@ export async function PATCH(
 
     const nextStage = stageForStatus(parsed.data.status, existing.stage);
 
-    // Build the update object first so we can conditionally add
-    // payment fields only when approving (submitted -> pending).
+   
     const updates: Record<string, unknown> = {
       status: parsed.data.status,
       stage: nextStage,
     };
 
-    // Once the certificate is actually released, clear any outstanding
-    // overdue notice so the resident portal banner disappears.
     if (parsed.data.status === "released") {
       updates.overdueNotice = {
         notified: false,
@@ -107,7 +104,6 @@ export async function PATCH(
           } else {
             console.error("Failed to create PayMongo link:", linkErr);
           }
-          // Don't block approval — resident can still pay in person.
         }
       }
       updates.paymentStatus = "unpaid";
@@ -138,7 +134,6 @@ export async function PATCH(
       residentUser,
     );
 
-    // Fire-and-forget: don't block the response on email delivery.
     if (
       (parsed.data.status === "released" ||
         parsed.data.status === "rejected") &&
