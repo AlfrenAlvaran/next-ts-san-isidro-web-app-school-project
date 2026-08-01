@@ -1,3 +1,4 @@
+// app/api/requests/route.ts
 import { auth } from "@/auth";
 import { connection } from "@/lib/database";
 import { sendRequestConfirmationEmail } from "@/lib/mail/sendRequestConfirmation";
@@ -13,7 +14,17 @@ const createSchema = z.object({
   category: z.string().min(2),
   fee: z.string().min(1),
   purpose: z.string().min(3),
+  // Resident-selected date for collecting the certificate.
+  pickupDate: z.coerce.date(),
 });
+
+// A request counts as overdue once its pickup date has passed and it
+// hasn't been released (or rejected) yet.
+function computeIsOverdue(pickupDate: Date | null | undefined, status: string) {
+  if (!pickupDate) return false;
+  if (status === "released" || status === "rejected") return false;
+  return pickupDate.getTime() < Date.now();
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -56,6 +67,9 @@ export async function POST(req: NextRequest) {
     });
 
     const submittedDate = created.createdAt.toISOString().split("T")[0];
+    const pickupDateLabel = created.pickupDate
+      ? created.pickupDate.toISOString().split("T")[0]
+      : undefined;
 
     const recipientEmail = session.user.email;
     if (recipientEmail) {
@@ -69,7 +83,10 @@ export async function POST(req: NextRequest) {
           fee: created.fee,
           purpose: created.purpose,
           submittedDate,
-        });
+          // TODO: add `pickupDate?: string` to sendRequestConfirmationEmail's
+          // param type and template so the confirmation email shows it too.
+          pickupDate: pickupDateLabel,
+        } as Parameters<typeof sendRequestConfirmationEmail>[0]);
       } catch (mailErr) {
         console.error("Failed to send confirmation email:", mailErr);
       }
@@ -90,6 +107,10 @@ export async function POST(req: NextRequest) {
           stage: created.stage,
           status: created.status,
           submitted: created.createdAt.toISOString().split("T")[0],
+          pickupDate: created.pickupDate
+            ? created.pickupDate.toISOString()
+            : null,
+          overdueNotice: created.overdueNotice ?? null,
         },
       },
       { status: 201 },
@@ -133,6 +154,9 @@ export async function GET() {
       stage: r.stage,
       status: r.status,
       submitted: r.createdAt.toISOString().split("T")[0],
+      pickupDate: r.pickupDate ? r.pickupDate.toISOString() : null,
+      overdueNotice: r.overdueNotice ?? null,
+      isOverdue: computeIsOverdue(r.pickupDate, r.status),
     }));
 
     return NextResponse.json({ requests }, { status: 200 });

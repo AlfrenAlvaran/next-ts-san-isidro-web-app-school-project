@@ -26,6 +26,9 @@ const Navbar = () => {
   const isAuthenticated = status === "authenticated";
   const userEmail = session?.user?.email ?? null;
   const userName = session?.user?.name ?? null;
+  const userRole = session?.user?.role ?? null;
+  const isResident = isAuthenticated && userRole === "resident";
+  const dashboardLabel = userRole === "resident" ? "Back to Portal" : "Dashboard";
 
   // scroll shadow effect
   useEffect(() => {
@@ -81,8 +84,6 @@ const Navbar = () => {
 
   const isLinkActive = (href: string) =>
     pathname === href || (href !== "/" && pathname?.startsWith(href));
-
-
 
   const initials = (userName || userEmail || "U")
     .split(" ")
@@ -203,6 +204,29 @@ const Navbar = () => {
 
             <div className="w-px h-5 bg-slate-200 mx-2" />
 
+            {/* Resident quick-return to their portal — visible without opening the avatar menu */}
+            {isResident && (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-1.5 px-3.5 py-2 text-[13.5px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-all duration-200 ease-out"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+                Back to Portal
+              </Link>
+            )}
+
             <Link
               href={"/request"}
               className="relative flex items-center gap-2 px-4 py-2 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.97] text-white text-[13.5px] font-semibold rounded-lg transition-all duration-200 ease-out hover:shadow-lg hover:shadow-slate-900/20 hover:-translate-y-[1px]"
@@ -259,7 +283,7 @@ const Navbar = () => {
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-slate-600 hover:text-slate-900 hover:bg-slate-50 hover:pl-5 transition-all duration-200 ease-out"
                   >
-                    Dashboard
+                    {dashboardLabel}
                   </Link>
                   <Link
                     href="/profile"
@@ -346,6 +370,29 @@ const Navbar = () => {
         }`}
       >
         <div className="max-w-7xl mx-auto px-5 py-3 space-y-1 overflow-y-auto max-h-[calc(100vh-80px)]">
+          {isResident && (
+            <Link
+              href="/dashboard"
+              onClick={() => setMobile(false)}
+              className="flex items-center gap-2 px-3 py-2.5 mb-1 text-[14px] font-semibold text-[#0F172A] bg-[#B8860B]/10 hover:bg-[#B8860B]/15 active:scale-[0.98] rounded-lg transition-all duration-200 ease-out"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+              Back to Portal
+            </Link>
+          )}
+
           {navLinks.map((link, idx) => {
             const active = isLinkActive(link.href);
             return (
@@ -431,7 +478,7 @@ const Navbar = () => {
                 onClick={() => setMobile(false)}
                 className="block px-3 py-2.5 text-[14px] text-slate-600 hover:bg-slate-50 active:scale-[0.98] rounded-lg transition-all duration-200 ease-out"
               >
-                Dashboard
+                {dashboardLabel}
               </Link>
               <button
                 onClick={handleSignOut}

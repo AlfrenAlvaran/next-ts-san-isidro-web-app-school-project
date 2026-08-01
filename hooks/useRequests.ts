@@ -5,6 +5,13 @@ import { toast } from "sonner";
 import { useMemo } from "react";
 import type { RequestStatus } from "@/data";
 
+export type OverdueNotice = {
+  notified: boolean;
+  message: string | null;
+  revisedPickupDate: string | null; // ISO string
+  notifiedAt: string | null; // ISO string
+};
+
 export type RequestItem = {
   id: string;
   referenceNo: string;
@@ -18,6 +25,9 @@ export type RequestItem = {
   residentName?: string; // present on admin-scoped endpoint only
   paymentStatus: "unpaid" | "paid";
   paymentLink?: string | null;
+  pickupDate?: string | null; // ISO string, resident-selected pickup date
+  overdueNotice?: OverdueNotice | null;
+  isOverdue?: boolean; // present on admin-scoped endpoint (server-computed)
 };
 
 const fetcher = (url: string) =>
@@ -51,6 +61,7 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     category: string;
     fee: string;
     purpose: string;
+    pickupDate: string; // ISO string
   }) => {
     try {
       const res = await axios.post("/api/requests", payload);
@@ -117,6 +128,38 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     }
   };
 
+  // Admin action: flag a request overdue, email the resident an apology,
+  // and record the revised pickup date so it shows up in the resident
+  // portal too. Call from an admin table row action.
+  const notifyOverdue = async (
+    id: string,
+    payload: { revisedPickupDate: string; message?: string },
+  ) => {
+    try {
+      const res = await axios.patch(
+        `/api/admin/requests/${id}/overdue`,
+        payload,
+      );
+      const updated = res.data.request as Pick<
+        RequestItem,
+        "id" | "referenceNo" | "status" | "pickupDate" | "overdueNotice"
+      >;
+      mutate(
+        list.map((r) => (r.id === id ? { ...r, ...updated } : r)),
+        false,
+      );
+      toast.success(`Resident notified — Ref ${updated.referenceNo}`);
+      return updated;
+    } catch (error) {
+      const message =
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? error.response.data.error
+          : "Failed to send overdue notice. Please try again.";
+      toast.error(message);
+      throw error;
+    }
+  };
+
   const pendingCount = useMemo(
     () => list.filter((r) => r.status === ("pending" as RequestStatus)).length,
     [list],
@@ -131,6 +174,22 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     () => list.filter((r) => r.status === ("rejected" as RequestStatus)).length,
     [list],
   );
+
+  // Requests whose pickup date has passed and haven't been released yet.
+  // Falls back to a client-side check for endpoints where the server
+  // hasn't computed `isOverdue` (kept in sync with the API's own logic).
+  const overdueRequests = useMemo(
+    () =>
+      list.filter((r) => {
+        if (typeof r.isOverdue === "boolean") return r.isOverdue;
+        if (!r.pickupDate) return false;
+        if (r.status === "released" || r.status === "rejected") return false;
+        return new Date(r.pickupDate).getTime() < Date.now();
+      }),
+    [list],
+  );
+
+  const overdueCount = overdueRequests.length;
 
   const countsByStatus = useMemo(() => {
     return list.reduce<Record<string, number>>((acc, r) => {
@@ -231,6 +290,9 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     weekOverWeekChange,
     recent,
     updateStatus,
-    markPayment, // NEW
+    markPayment,
+    notifyOverdue, // NEW
+    overdueRequests, // NEW
+    overdueCount, // NEW
   };
 }

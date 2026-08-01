@@ -5,6 +5,14 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+// A request counts as overdue once its pickup date has passed and it
+// hasn't been released (or rejected) yet.
+function computeIsOverdue(pickupDate: Date | null | undefined, status: string) {
+  if (!pickupDate) return false;
+  if (status === "released" || status === "rejected") return false;
+  return pickupDate.getTime() < Date.now();
+}
+
 export async function GET() {
   try {
     const session = await auth();
@@ -35,6 +43,9 @@ export async function GET() {
       paymentStatus: r.paymentStatus,
       paymentLink: r.paymentLink ?? null,
       submitted: r.createdAt.toISOString().split("T")[0],
+      pickupDate: r.pickupDate ? r.pickupDate.toISOString() : null,
+      overdueNotice: r.overdueNotice ?? null,
+      isOverdue: computeIsOverdue(r.pickupDate, r.status),
       residentName: (r.profile_id as any)?.user?.fullName ?? "Unknown",
     }));
 

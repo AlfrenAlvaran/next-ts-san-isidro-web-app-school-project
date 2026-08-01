@@ -1,16 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Clock,
   CheckCircle2,
   ArrowLeft,
+  ArrowRight,
   Loader2,
   Check,
   Stamp,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  PlusCircle,
 } from "lucide-react";
 import Header from "@/components/Header";
-import { services, ServiceChild } from "@/data"; // adjust path to wherever `services` actually lives
+import { services, ServiceChild } from "@/data";
 import axios from "axios";
 
 function slugify(title: string) {
@@ -20,32 +26,82 @@ function slugify(title: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-type Step = "select" | "details" | "confirmed";
-const stepOrder: Step[] = ["select", "details", "confirmed"];
+/* ---------- date helpers ---------- */
+
+const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const MONTH_LABELS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function startOfDay(d: Date) {
+  const n = new Date(d);
+  n.setHours(0, 0, 0, 0);
+  return n;
+}
+
+function formatLong(d: Date) {
+  return d.toLocaleDateString("en-PH", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/* ---------- steps ---------- */
+
+type Step = "select" | "details" | "pickup" | "confirmed";
+const stepOrder: Step[] = ["select", "details", "pickup", "confirmed"];
 const stepLabels: Record<Step, string> = {
   select: "Certificate",
   details: "Details",
+  pickup: "Pickup",
   confirmed: "Done",
 };
 
 export default function RequestPage() {
   const [step, setStep] = useState<Step>("select");
+  const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [selectedType, setSelectedType] = useState<ServiceChild | null>(null);
   const [purpose, setPurpose] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [pickupDate, setPickupDate] = useState<Date | null>(null);
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d;
+  });
   const [submitting, setSubmitting] = useState(false);
   const [referenceNo, setReferenceNo] = useState("");
 
   const currentIndex = stepOrder.indexOf(step);
+  const today = useMemo(() => startOfDay(new Date()), []);
+  const earliestPickup = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 1); // earliest is tomorrow
+    return d;
+  }, [today]);
+
+  const goTo = (next: Step, dir: "forward" | "back" = "forward") => {
+    setDirection(dir);
+    setStep(next);
+  };
 
   const handleSelectType = (type: ServiceChild) => {
     setSelectedType(type);
-    setTimeout(() => setStep("details"), 150);
+    setTimeout(() => goTo("details"), 150);
   };
 
   const handleSubmit = async () => {
-    if (!selectedType) return;
-    if (!purpose.trim()) return;
+    if (!selectedType || !purpose.trim() || !pickupDate) return;
 
     setSubmitting(true);
 
@@ -55,10 +111,11 @@ export default function RequestPage() {
         category: selectedType.category,
         fee: selectedType.fee,
         purpose,
+        pickupDate: pickupDate.toISOString(),
       });
 
       setReferenceNo(res.data.request.referenceNo);
-      setStep("confirmed");
+      goTo("confirmed");
     } catch (err) {
       if (axios.isAxiosError(err)) {
         console.error(
@@ -76,11 +133,52 @@ export default function RequestPage() {
     setStep("select");
     setSelectedType(null);
     setPurpose("");
+    setPickupDate(null);
     setReferenceNo("");
   };
 
+  /* ---------- calendar grid ---------- */
+
+  const calendarCells = useMemo(() => {
+    const year = visibleMonth.getFullYear();
+    const month = visibleMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startOffset = firstDay.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const cells: (Date | null)[] = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+    return cells;
+  }, [visibleMonth]);
+
+  const canGoPrevMonth =
+    visibleMonth.getFullYear() > today.getFullYear() ||
+    (visibleMonth.getFullYear() === today.getFullYear() &&
+      visibleMonth.getMonth() > today.getMonth());
+
+  const isDateDisabled = (d: Date) =>
+    d.getTime() < earliestPickup.getTime() || d.getDay() === 0; // closed Sundays
+
   return (
     <>
+      <style>{`
+        @keyframes stepIn {
+          from { opacity: 0; transform: translateX(var(--slide-from, 8px)); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes popIn {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .step-enter {
+          animation: stepIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .pop-enter {
+          animation: popIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+      `}</style>
+
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-10">
         {/* Page header */}
         <div className="mb-6">
@@ -91,8 +189,8 @@ export default function RequestPage() {
             Request a certificate
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Choose a certificate type and we'll prepare it for pickup at the
-            barangay hall.
+            Choose a certificate type, tell us what it's for, and pick a date
+            to collect it at the barangay hall.
           </p>
         </div>
 
@@ -134,13 +232,13 @@ export default function RequestPage() {
 
         {/* Step: select certificate type */}
         {step === "select" && (
-          <>
+          <div className="step-enter" style={{ ["--slide-from" as string]: "8px" }}>
             <p className="text-xs text-slate-500 mb-3">
               <span className="text-rose-500">*</span> Required — choose one
               service
             </p>
             <div className="grid sm:grid-cols-2 gap-3">
-              {services.map((service) => {
+              {services.map((service, idx) => {
                 const Icon = service.icon;
                 const id = slugify(service.title);
                 const isSelected =
@@ -149,14 +247,15 @@ export default function RequestPage() {
                   <button
                     key={id}
                     onClick={() => handleSelectType(service)}
-                    className={`group relative text-left p-4 rounded-xl border bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
+                    style={{ animationDelay: `${idx * 40}ms` }}
+                    className={`pop-enter group relative text-left p-4 rounded-xl border bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60 ${
                       isSelected
-                        ? "border-[#0F172A]"
+                        ? "border-[#0F172A] shadow-sm"
                         : "border-slate-200 hover:border-slate-300"
                     }`}
                   >
                     {isSelected && (
-                      <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#0F172A] flex items-center justify-center">
+                      <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#0F172A] flex items-center justify-center animate-[popIn_0.25s_ease]">
                         <Check className="w-3 h-3 text-white" />
                       </span>
                     )}
@@ -202,33 +301,21 @@ export default function RequestPage() {
                 );
               })}
             </div>
-          </>
+          </div>
         )}
 
         {/* Step: request details */}
         {step === "details" && selectedType && (
-          <div>
+          <div className="step-enter">
             <button
-              onClick={() => setStep("select")}
+              onClick={() => goTo("select", "back")}
               className="group flex items-center gap-1.5 text-slate-500 hover:text-slate-900 text-sm font-medium mb-5 transition-colors duration-200"
             >
               <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
               Back
             </button>
 
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg bg-[#0F172A] flex items-center justify-center shrink-0">
-                <selectedType.icon className="w-4.5 h-4.5 text-[#B45309]" />
-              </div>
-              <div>
-                <p className="text-slate-900 text-sm font-semibold">
-                  {selectedType.title}
-                </p>
-                <p className="text-slate-500 text-xs">
-                  {selectedType.processing} · {selectedType.fee}
-                </p>
-              </div>
-            </div>
+            <SelectedSummary selectedType={selectedType} />
 
             <div className="space-y-5">
               <div>
@@ -251,28 +338,144 @@ export default function RequestPage() {
               </div>
 
               <button
-                onClick={handleSubmit}
-                disabled={!purpose.trim() || submitting}
+                onClick={() => goTo("pickup")}
+                disabled={!purpose.trim()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#0F172A] text-white text-sm font-semibold hover:bg-[#1E293B] active:scale-[0.99] disabled:opacity-40 disabled:hover:bg-[#0F172A] disabled:active:scale-100 transition-all duration-200"
               >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Submitting request
-                  </>
-                ) : (
-                  "Submit request"
-                )}
+                Choose pickup date
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
 
+        {/* Step: pickup date */}
+        {step === "pickup" && selectedType && (
+          <div className="step-enter">
+            <button
+              onClick={() => goTo("details", "back")}
+              className="group flex items-center gap-1.5 text-slate-500 hover:text-slate-900 text-sm font-medium mb-5 transition-colors duration-200"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
+              Back
+            </button>
+
+            <SelectedSummary selectedType={selectedType} />
+
+            <label className="block text-slate-700 text-xs font-semibold uppercase tracking-wide mb-2">
+              Pickup date <span className="text-rose-500">*</span>
+            </label>
+            <p className="text-slate-500 text-xs mb-4">
+              Choose the day you'll collect your certificate at the barangay
+              hall. Closed on Sundays.
+            </p>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4 mb-5">
+              {/* month nav */}
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={() =>
+                    setVisibleMonth(
+                      (m) => new Date(m.getFullYear(), m.getMonth() - 1, 1),
+                    )
+                  }
+                  disabled={!canGoPrevMonth}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-30 disabled:hover:bg-transparent transition-all duration-150"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <p className="text-slate-900 text-sm font-semibold">
+                  {MONTH_LABELS[visibleMonth.getMonth()]}{" "}
+                  {visibleMonth.getFullYear()}
+                </p>
+                <button
+                  onClick={() =>
+                    setVisibleMonth(
+                      (m) => new Date(m.getFullYear(), m.getMonth() + 1, 1),
+                    )
+                  }
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-all duration-150"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* day labels */}
+              <div className="grid grid-cols-7 mb-1">
+                {DAY_LABELS.map((d) => (
+                  <div
+                    key={d}
+                    className="text-center text-[10px] font-semibold text-slate-400 py-1.5"
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* day grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {calendarCells.map((d, i) => {
+                  if (!d) return <div key={`empty-${i}`} />;
+                  const disabled = isDateDisabled(d);
+                  const selected = pickupDate && isSameDay(d, pickupDate);
+                  const isToday = isSameDay(d, today);
+                  return (
+                    <button
+                      key={d.toISOString()}
+                      onClick={() => !disabled && setPickupDate(d)}
+                      disabled={disabled}
+                      className={`relative aspect-square rounded-lg text-xs font-medium flex items-center justify-center transition-all duration-150 ${
+                        selected
+                          ? "bg-[#0F172A] text-white font-bold scale-105"
+                          : disabled
+                            ? "text-slate-300 cursor-not-allowed"
+                            : "text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {d.getDate()}
+                      {isToday && !selected && (
+                        <span className="absolute bottom-1 w-1 h-1 rounded-full bg-[#B45309]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {pickupDate && (
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[#B45309]/5 border border-[#B45309]/20 mb-5 pop-enter">
+                <CalendarIcon className="w-4 h-4 text-[#B45309] shrink-0" />
+                <p className="text-slate-700 text-xs">
+                  Ready for pickup on{" "}
+                  <span className="font-semibold text-slate-900">
+                    {formatLong(pickupDate)}
+                  </span>
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              disabled={!pickupDate || submitting}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#0F172A] text-white text-sm font-semibold hover:bg-[#1E293B] active:scale-[0.99] disabled:opacity-40 disabled:hover:bg-[#0F172A] disabled:active:scale-100 transition-all duration-200"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Submitting request
+                </>
+              ) : (
+                "Submit request"
+              )}
+            </button>
+          </div>
+        )}
+
         {/* Step: confirmed */}
         {step === "confirmed" && selectedType && (
-          <div className="text-center py-6">
+          <div className="text-center py-6 step-enter">
             <div className="relative w-16 h-16 mx-auto mb-5">
-              <div className="w-16 h-16 rounded-full bg-[#0F172A] flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-[#0F172A] flex items-center justify-center pop-enter">
                 <Stamp className="w-7 h-7 text-[#B45309]" strokeWidth={2} />
               </div>
               <CheckCircle2 className="absolute -bottom-1 -right-1 w-6 h-6 text-white bg-[#0F172A] rounded-full" />
@@ -286,7 +489,7 @@ export default function RequestPage() {
               ready for pickup.
             </p>
 
-            <div className="inline-flex flex-col items-center gap-1 px-6 py-4 rounded-xl bg-slate-50 border border-slate-200 mb-6">
+            <div className="inline-flex flex-col items-center gap-1 px-6 py-4 rounded-xl bg-slate-50 border border-slate-200 mb-4">
               <p className="text-slate-400 text-[11px] font-medium uppercase tracking-wide">
                 Reference number
               </p>
@@ -295,27 +498,48 @@ export default function RequestPage() {
               </p>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-slate-500 text-xs mb-8">
-              <Clock className="w-3.5 h-3.5" />
-              Estimated ready in {selectedType.processing}
-            </div>
+            {pickupDate && (
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#B45309]/5 border border-[#B45309]/20 mb-8">
+                <CalendarIcon className="w-3.5 h-3.5 text-[#B45309]" />
+                <p className="text-slate-700 text-xs font-medium">
+                  Pickup: {formatLong(pickupDate)}
+                </p>
+              </div>
+            )}
 
-            <button
-              onClick={handleReset}
-              disabled={!purpose.trim() || submitting}
-              className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors duration-200"
-            >
-             {submitting ? (
-              <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              </>
-             ): (
-              "Submit Request"
-             )}
-            </button>
+            <div className="flex items-center justify-center">
+              <button
+                onClick={handleReset}
+                className="group flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors duration-200"
+              >
+                <PlusCircle className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
+                Submit another request
+              </button>
+            </div>
           </div>
         )}
       </main>
     </>
+  );
+}
+
+/* ---------- shared selected-certificate summary card ---------- */
+
+function SelectedSummary({ selectedType }: { selectedType: ServiceChild }) {
+  return (
+    <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-3 mb-6">
+      <div className="w-10 h-10 rounded-lg bg-[#0F172A] flex items-center justify-center shrink-0">
+        <selectedType.icon className="w-4.5 h-4.5 text-[#B45309]" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-slate-900 text-sm font-semibold truncate">
+          {selectedType.title}
+        </p>
+        <p className="text-slate-500 text-xs flex items-center gap-1">
+          <FileText className="w-3 h-3" />
+          {selectedType.processing} · {selectedType.fee}
+        </p>
+      </div>
+    </div>
   );
 }

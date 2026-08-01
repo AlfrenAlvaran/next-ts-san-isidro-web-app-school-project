@@ -1,4 +1,12 @@
+// models/RequestModel.ts
 import { Schema, model, models, Types } from "mongoose";
+
+export interface IOverdueNotice {
+  notified: boolean;
+  message: string | null;
+  revisedPickupDate: Date | null;
+  notifiedAt: Date | null;
+}
 
 export interface IRequest {
   profile_id: Types.ObjectId;
@@ -14,6 +22,11 @@ export interface IRequest {
   paymongoLinkId?: string | null;
   paymentMethod?: "online" | "manual" | null;
   hitpayRequestId?: string | null;
+  // Date the resident chose to collect the certificate at the barangay hall.
+  pickupDate?: Date | null;
+  // Set whenever an admin flags the request as overdue past `pickupDate`.
+  // Drives both the email notice and the in-portal banner shown to the resident.
+  overdueNotice: IOverdueNotice;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +61,17 @@ const RequestSchema = new Schema<IRequest>(
     // HitPay
     paymentMethod: { type: String, enum: ["online", "manual"], default: null },
     hitpayRequestId: { type: String, default: null },
+
+    // Resident-selected pickup date (set at submission time).
+    pickupDate: { type: Date, default: null },
+
+    // Overdue tracking — populated by PATCH /api/admin/requests/[id]/overdue
+    overdueNotice: {
+      notified: { type: Boolean, default: false },
+      message: { type: String, default: null },
+      revisedPickupDate: { type: Date, default: null },
+      notifiedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true },
 );

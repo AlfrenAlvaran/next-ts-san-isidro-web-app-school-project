@@ -74,6 +74,17 @@ export async function PATCH(
       stage: nextStage,
     };
 
+    // Once the certificate is actually released, clear any outstanding
+    // overdue notice so the resident portal banner disappears.
+    if (parsed.data.status === "released") {
+      updates.overdueNotice = {
+        notified: false,
+        message: null,
+        revisedPickupDate: null,
+        notifiedAt: null,
+      };
+    }
+
     let generatedPaymentLink: string | null = null;
 
     if (parsed.data.status === "pending" && !existing.paymentLink) {
@@ -193,6 +204,10 @@ export async function PATCH(
           paymentStatus: updated.paymentStatus,
           paymentLink: updated.paymentLink,
           submitted: updated.createdAt.toISOString().split("T")[0],
+          pickupDate: updated.pickupDate
+            ? updated.pickupDate.toISOString()
+            : null,
+          overdueNotice: updated.overdueNotice ?? null,
           residentName: residentUser?.fullName ?? "Unknown",
         },
       },

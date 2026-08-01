@@ -29,15 +29,11 @@ export async function sendPaymentRequestEmail({
       cashier — whichever works best for you.
     </p>
     <div style="margin:24px 0;text-align:center;">
-      <a href="${payOnlineUrl}"
-        style="display:inline-block;background:#0F172A;color:#fff;padding:12px 22px;
-        border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 6px 10px;">
-        Pay Online
-      </a>
+     
       <a href="${payInPersonUrl}"
         style="display:inline-block;border:1px solid #0F172A;color:#0F172A;padding:12px 22px;
         border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 6px 10px;">
-        Pay In Person
+        Pay Online
       </a>
     </div>
     <p style="color:#94a3b8;font-size:12px;">
