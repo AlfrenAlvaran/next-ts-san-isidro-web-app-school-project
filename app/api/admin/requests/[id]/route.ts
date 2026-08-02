@@ -114,11 +114,10 @@ export async function PATCH(
       }
     }
 
-    // NOTE: Mongoose uses `new`, not the native driver's `returnDocument`.
-    // Without `new: true`, `updated` would reflect pre-update values
-    // (e.g. a just-generated paymentLink would appear missing).
+    // Return the post-update document — otherwise `updated` would reflect
+    // pre-update values (e.g. a just-generated paymentLink would appear missing).
     const updated = await RequestModel.findByIdAndUpdate(id, updates, {
-      new: true,
+      returnDocument: "after",
     }).populate({
       path: "profile_id",
       populate: { path: "user", select: "fullName email" },
