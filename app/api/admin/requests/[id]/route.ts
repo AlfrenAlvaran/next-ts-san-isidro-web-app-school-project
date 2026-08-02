@@ -175,7 +175,7 @@ export async function PATCH(
           params.set("service", updated.serviceTitle);
           if (updated.fee) params.set("amount", updated.fee);
           Object.entries(extra).forEach(([k, v]) => v && params.set(k, v));
-          return `${process.env.NEXT_PUBLIC_APP_URL}/payment-info?${params.toString()}`;
+          return `${process.env.APP_URL}/payment-info?${params.toString()}`;
         };
 
         sendPaymentRequestEmail({
