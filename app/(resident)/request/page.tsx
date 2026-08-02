@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Clock,
   CheckCircle2,
@@ -14,6 +14,10 @@ import {
   ChevronRight,
   FileText,
   PlusCircle,
+  AlertTriangle,
+  Copy,
+  CopyCheck,
+  RefreshCcw,
 } from "lucide-react";
 import Header from "@/components/Header";
 import { services, ServiceChild } from "@/data";
@@ -81,6 +85,12 @@ export default function RequestPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [referenceNo, setReferenceNo] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  // Error state for the submit step — surfaced in the UI instead of only
+  // being logged to the console.
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [shakeError, setShakeError] = useState(false);
 
   const currentIndex = stepOrder.indexOf(step);
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -104,6 +114,7 @@ export default function RequestPage() {
     if (!selectedType || !purpose.trim() || !pickupDate) return;
 
     setSubmitting(true);
+    setSubmitError(null);
 
     try {
       const res = await axios.post("/api/requests", {
@@ -117,17 +128,36 @@ export default function RequestPage() {
       setReferenceNo(res.data.request.referenceNo);
       goTo("confirmed");
     } catch (err) {
+      let message =
+        "Something went wrong on our end. Please try submitting again.";
+
       if (axios.isAxiosError(err)) {
-        console.error(
-          err.response?.data?.error ?? "Unknown error submitting request.",
-        );
+        if (!err.response) {
+          message =
+            "We couldn't reach the server. Check your connection and try again.";
+        } else if (err.response.status >= 500) {
+          message =
+            "The barangay system is temporarily unavailable. Please try again in a moment.";
+        } else if (err.response.data?.error) {
+          message = err.response.data.error;
+        }
+        console.error(err.response?.data?.error ?? "Unknown error submitting request.");
       } else {
         console.error(err);
       }
+
+      setSubmitError(message);
+      setShakeError(true);
     } finally {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!shakeError) return;
+    const t = setTimeout(() => setShakeError(false), 420);
+    return () => clearTimeout(t);
+  }, [shakeError]);
 
   const handleReset = () => {
     setStep("select");
@@ -135,6 +165,19 @@ export default function RequestPage() {
     setPurpose("");
     setPickupDate(null);
     setReferenceNo("");
+    setSubmitError(null);
+    setCopied(false);
+  };
+
+  const handleCopyReference = async () => {
+    try {
+      await navigator.clipboard.writeText(referenceNo);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // Clipboard access can fail (permissions, insecure context) — fail quietly,
+      // the reference number is still visible on screen to copy manually.
+    }
   };
 
   /* ---------- calendar grid ---------- */
@@ -171,24 +214,47 @@ export default function RequestPage() {
           from { opacity: 0; transform: scale(0.9); }
           to { opacity: 1; transform: scale(1); }
         }
+        @keyframes monthIn {
+          from { opacity: 0; transform: translateY(3px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shakeX {
+          10%, 90% { transform: translateX(-1px); }
+          20%, 80% { transform: translateX(2px); }
+          30%, 50%, 70% { transform: translateX(-4px); }
+          40%, 60% { transform: translateX(4px); }
+        }
+        @keyframes ringPulse {
+          0% { box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.35); }
+          100% { box-shadow: 0 0 0 10px rgba(180, 83, 9, 0); }
+        }
         .step-enter {
           animation: stepIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .pop-enter {
           animation: popIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
         }
+        .month-enter {
+          animation: monthIn 0.22s ease-out;
+        }
+        .shake-error {
+          animation: shakeX 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+        }
+        .seal-ring {
+          animation: ringPulse 1.8s cubic-bezier(0.22, 1, 0.36, 1) 1;
+        }
       `}</style>
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-10">
         {/* Page header */}
         <div className="mb-6">
-          <p className="text-slate-400 text-[11px] font-medium uppercase tracking-wide mb-1">
+          <p className="text-slate-400 text-[11px] font-semibold uppercase tracking-[0.14em] mb-1.5">
             Resident Portal
           </p>
-          <h1 className="text-slate-900 text-xl font-bold">
+          <h1 className="text-slate-900 text-2xl font-bold tracking-tight">
             Request a certificate
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">
             Choose a certificate type, tell us what it's for, and pick a date
             to collect it at the barangay hall.
           </p>
@@ -248,7 +314,7 @@ export default function RequestPage() {
                     key={id}
                     onClick={() => handleSelectType(service)}
                     style={{ animationDelay: `${idx * 40}ms` }}
-                    className={`pop-enter group relative text-left p-4 rounded-xl border bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60 ${
+                    className={`pop-enter group relative text-left p-4 rounded-xl border bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F172A]/30 focus-visible:ring-offset-2 ${
                       isSelected
                         ? "border-[#0F172A] shadow-sm"
                         : "border-slate-200 hover:border-slate-300"
@@ -330,11 +396,18 @@ export default function RequestPage() {
                   required
                   className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F172A]/10 focus:border-[#0F172A] transition-all duration-200 resize-none"
                 />
-                {!purpose.trim() && (
-                  <p className="text-[11px] text-slate-400 mt-1.5">
+                <div className="flex items-center justify-between mt-1.5">
+                  <p
+                    className={`text-[11px] transition-colors duration-200 ${
+                      !purpose.trim() ? "text-slate-400" : "text-transparent"
+                    }`}
+                  >
                     This field is required.
                   </p>
-                )}
+                  <p className="text-[11px] text-slate-300 tabular-nums">
+                    {purpose.length}/200
+                  </p>
+                </div>
               </div>
 
               <button
@@ -370,7 +443,7 @@ export default function RequestPage() {
               hall. Closed on Sundays.
             </p>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-4 mb-5">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 mb-5 shadow-sm shadow-slate-100">
               {/* month nav */}
               <div className="flex items-center justify-between mb-4">
                 <button
@@ -384,7 +457,10 @@ export default function RequestPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <p className="text-slate-900 text-sm font-semibold">
+                <p
+                  key={`${visibleMonth.getFullYear()}-${visibleMonth.getMonth()}`}
+                  className="month-enter text-slate-900 text-sm font-semibold"
+                >
                   {MONTH_LABELS[visibleMonth.getMonth()]}{" "}
                   {visibleMonth.getFullYear()}
                 </p>
@@ -413,7 +489,10 @@ export default function RequestPage() {
               </div>
 
               {/* day grid */}
-              <div className="grid grid-cols-7 gap-1">
+              <div
+                key={`grid-${visibleMonth.getFullYear()}-${visibleMonth.getMonth()}`}
+                className="month-enter grid grid-cols-7 gap-1"
+              >
                 {calendarCells.map((d, i) => {
                   if (!d) return <div key={`empty-${i}`} />;
                   const disabled = isDateDisabled(d);
@@ -424,12 +503,15 @@ export default function RequestPage() {
                       key={d.toISOString()}
                       onClick={() => !disabled && setPickupDate(d)}
                       disabled={disabled}
-                      className={`relative aspect-square rounded-lg text-xs font-medium flex items-center justify-center transition-all duration-150 ${
+                      title={d.getDay() === 0 ? "Closed on Sundays" : undefined}
+                      className={`relative aspect-square rounded-lg text-xs font-medium flex items-center justify-center transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F172A]/30 ${
                         selected
-                          ? "bg-[#0F172A] text-white font-bold scale-105"
+                          ? "bg-[#0F172A] text-white font-bold scale-105 shadow-sm"
                           : disabled
-                            ? "text-slate-300 cursor-not-allowed"
-                            : "text-slate-700 hover:bg-slate-100"
+                            ? d.getDay() === 0
+                              ? "text-slate-300 cursor-not-allowed line-through decoration-slate-200"
+                              : "text-slate-300 cursor-not-allowed"
+                            : "text-slate-700 hover:bg-slate-100 hover:scale-105"
                       }`}
                     >
                       {d.getDate()}
@@ -439,6 +521,17 @@ export default function RequestPage() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+                <span className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#B45309]" />
+                  Today
+                </span>
+                <span className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-3 border-t border-dashed border-slate-300" />
+                  Closed (Sunday)
+                </span>
               </div>
             </div>
 
@@ -454,15 +547,46 @@ export default function RequestPage() {
               </div>
             )}
 
+            {submitError && (
+              <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-lg bg-rose-50 border border-rose-200 mb-4 pop-enter">
+                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-rose-700 text-xs font-semibold mb-0.5">
+                    Couldn't submit your request
+                  </p>
+                  <p className="text-rose-600/90 text-xs leading-relaxed">
+                    {submitError}
+                  </p>
+                </div>
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-rose-700 hover:text-rose-900 transition-colors duration-150 disabled:opacity-50"
+                >
+                  <RefreshCcw className="w-3 h-3" />
+                  Retry
+                </button>
+              </div>
+            )}
+
             <button
               onClick={handleSubmit}
               disabled={!pickupDate || submitting}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#0F172A] text-white text-sm font-semibold hover:bg-[#1E293B] active:scale-[0.99] disabled:opacity-40 disabled:hover:bg-[#0F172A] disabled:active:scale-100 transition-all duration-200"
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold active:scale-[0.99] disabled:opacity-40 disabled:active:scale-100 transition-all duration-200 ${
+                submitError
+                  ? "bg-rose-600 hover:bg-rose-700 disabled:hover:bg-rose-600"
+                  : "bg-[#0F172A] hover:bg-[#1E293B] disabled:hover:bg-[#0F172A]"
+              } text-white ${shakeError ? "shake-error" : ""}`}
             >
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Submitting request
+                </>
+              ) : submitError ? (
+                <>
+                  <RefreshCcw className="w-4 h-4" />
+                  Try again
                 </>
               ) : (
                 "Submit request"
@@ -475,7 +599,7 @@ export default function RequestPage() {
         {step === "confirmed" && selectedType && (
           <div className="text-center py-6 step-enter">
             <div className="relative w-16 h-16 mx-auto mb-5">
-              <div className="w-16 h-16 rounded-full bg-[#0F172A] flex items-center justify-center pop-enter">
+              <div className="seal-ring w-16 h-16 rounded-full bg-[#0F172A] flex items-center justify-center pop-enter">
                 <Stamp className="w-7 h-7 text-[#B45309]" strokeWidth={2} />
               </div>
               <CheckCircle2 className="absolute -bottom-1 -right-1 w-6 h-6 text-white bg-[#0F172A] rounded-full" />
@@ -489,13 +613,29 @@ export default function RequestPage() {
               ready for pickup.
             </p>
 
-            <div className="inline-flex flex-col items-center gap-1 px-6 py-4 rounded-xl bg-slate-50 border border-slate-200 mb-4">
+            <div className="inline-flex flex-col items-center gap-1.5 px-6 py-4 rounded-xl bg-slate-50 border border-slate-200 mb-4">
               <p className="text-slate-400 text-[11px] font-medium uppercase tracking-wide">
                 Reference number
               </p>
-              <p className="text-slate-900 text-base font-bold tracking-wide">
+              <button
+                onClick={handleCopyReference}
+                className="group flex items-center gap-2 text-slate-900 text-base font-bold tracking-wide hover:text-[#0F172A] transition-colors duration-150"
+                title="Copy reference number"
+              >
                 {referenceNo}
-              </p>
+                {copied ? (
+                  <CopyCheck className="w-3.5 h-3.5 text-emerald-600" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-colors duration-150" />
+                )}
+              </button>
+              <span
+                className={`text-[10px] font-medium transition-opacity duration-200 ${
+                  copied ? "opacity-100 text-emerald-600" : "opacity-0"
+                }`}
+              >
+                Copied to clipboard
+              </span>
             </div>
 
             {pickupDate && (
@@ -523,7 +663,7 @@ export default function RequestPage() {
   );
 }
 
-/* ---------- shared selected-certificate summary card ---------- */
+
 
 function SelectedSummary({ selectedType }: { selectedType: ServiceChild }) {
   return (

@@ -25,8 +25,11 @@ import {
   MoreHorizontal,
   AlertTriangle,
   CalendarClock,
+  ArrowUpDown,
+  ChevronRight as ChevronRightIcon,
 } from "lucide-react";
 import { CERT_TYPES } from "@/constant";
+import Link from "next/link";
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
@@ -37,21 +40,65 @@ function formatDate(value?: string | null) {
   });
 }
 
-function PaymentPill({ status }: { status: "unpaid" | "paid" }) {
+// Status → accent color used for the row's left rail and the resident avatar.
+const STATUS_ACCENT: Record<string, string> = {
+  submitted: "#94A3B8",
+  pending: "#F59E0B",
+  released: "#10B981",
+  rejected: "#F43F5E",
+};
+
+function initials(name?: string | null) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase();
+}
+
+// Deterministic soft tint for an avatar background, derived from the name.
+function avatarTint(name?: string | null) {
+  const tints = [
+    "bg-indigo-50 text-indigo-600",
+    "bg-rose-50 text-rose-600",
+    "bg-amber-50 text-amber-700",
+    "bg-emerald-50 text-emerald-600",
+    "bg-sky-50 text-sky-600",
+    "bg-violet-50 text-violet-600",
+  ];
+  if (!name) return tints[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return tints[hash % tints.length];
+}
+
+function PaymentPill({ status }: { status: "unpaid" | "paid" | "free" }) {
+  const config = {
+    paid: {
+      label: "Paid",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      dot: "bg-emerald-500",
+    },
+    unpaid: {
+      label: "Unpaid",
+      className: "bg-amber-50 text-amber-700 ring-amber-100",
+      dot: "bg-amber-500",
+    },
+    free: {
+      label: "Free",
+      className: "bg-slate-50 text-slate-600 ring-slate-200",
+      dot: "bg-slate-400",
+    },
+  } as const;
+
+  const { label, className, dot } = config[status];
+
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ring-1 transition-colors ${
-        status === "paid"
-          ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-          : "bg-amber-50 text-amber-700 ring-amber-100"
-      }`}
+      className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ring-1 transition-colors ${className}`}
     >
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${
-          status === "paid" ? "bg-emerald-500" : "bg-amber-500"
-        }`}
-      />
-      {status === "paid" ? "Paid" : "Unpaid"}
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+      {label}
     </span>
   );
 }
@@ -192,9 +239,34 @@ function Pagination({
 function RowSkeleton() {
   return (
     <tr className="border-b border-slate-50 last:border-0">
-      <td className="px-5 py-4" colSpan={9}>
-        <div className="h-3.5 w-full max-w-md bg-slate-100 rounded animate-pulse" />
+      <td className="px-5 py-4">
+        <div className="h-3 w-16 bg-slate-100 rounded animate-pulse" />
       </td>
+      <td className="px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-full bg-slate-100 animate-pulse shrink-0" />
+          <div className="h-3 w-28 bg-slate-100 rounded animate-pulse" />
+        </div>
+      </td>
+      <td className="px-5 py-4 hidden md:table-cell">
+        <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
+      </td>
+      <td className="px-5 py-4 hidden xl:table-cell">
+        <div className="h-3 w-32 bg-slate-100 rounded animate-pulse" />
+      </td>
+      <td className="px-5 py-4 hidden lg:table-cell">
+        <div className="h-3 w-14 bg-slate-100 rounded animate-pulse" />
+      </td>
+      <td className="px-5 py-4 hidden lg:table-cell">
+        <div className="h-3 w-16 bg-slate-100 rounded animate-pulse" />
+      </td>
+      <td className="px-5 py-4">
+        <div className="h-5 w-16 bg-slate-100 rounded-full animate-pulse" />
+      </td>
+      <td className="px-5 py-4">
+        <div className="h-5 w-12 bg-slate-100 rounded-full animate-pulse" />
+      </td>
+      <td className="px-5 py-4" />
     </tr>
   );
 }
@@ -216,6 +288,7 @@ const RequestsPage = () => {
   const [selected, setSelected] = useState<RequestItem | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const [actionLoading, setActionLoading] = useState<
     "pending" | "released" | "rejected" | "payment" | "overdue" | null
@@ -521,148 +594,170 @@ const RequestsPage = () => {
               ))}
             </select>
           </div>
-          <button
-            onClick={() =>
-              setSort((s) => (s === "newest" ? "oldest" : "newest"))
-            }
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-600 font-medium hover:border-slate-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8860B]"
-          >
-            {sort === "newest" ? "Newest first" : "Oldest first"}
-            <ChevronDown
-              className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
-                sort === "oldest" ? "rotate-180" : ""
-              }`}
-            />
-          </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/60">
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">
-                Reference
-              </th>
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">
-                Resident
-              </th>
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3 hidden md:table-cell">
-                Certificate
-              </th>
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3 hidden xl:table-cell">
-                Purpose
-              </th>
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3 hidden lg:table-cell">
-                Submitted
-              </th>
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3 hidden lg:table-cell">
-                Wished pickup
-              </th>
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">
-                Status
-              </th>
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-5 py-3">
-                Payment
-              </th>
-              <th className="px-5 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {loading &&
-              Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} />)}
-            {!loading &&
-              paginated.map((r, i) => (
-                <tr
-                  key={r.id}
-                  style={{
-                    animation: `rowIn 0.25s ease-out ${Math.min(i, 8) * 0.03}s both`,
-                  }}
-                  className="group border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors cursor-pointer"
-                  onClick={() => setSelected(r)}
-                >
-                  <td className="px-5 py-3.5 text-xs font-bold text-slate-400 tabular-nums">
-                    {r.referenceNo}
-                  </td>
-                  <td className="px-5 py-3.5 font-semibold text-slate-800">
-                    {r.residentName ?? "Unknown"}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-500 hidden md:table-cell">
-                    {r.serviceTitle}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-500 hidden xl:table-cell">
-                    {r.purpose}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-400 text-xs hidden lg:table-cell">
-                    {r.submitted}
-                  </td>
-                  <td className="px-5 py-3.5 text-xs hidden lg:table-cell">
-                    {r.isOverdue ? (
-                      <span className="inline-flex items-center gap-1 text-rose-600 font-semibold">
-                        <AlertTriangle className="w-3 h-3" />
-                        {formatDate(r.pickupDate)}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">
-                        {formatDate(r.pickupDate)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="inline-flex items-center gap-1.5">
-                      <StatusIcon status={r.status} />
-                      <StatusPill status={r.status} />
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    {r.status === "pending" || r.status === "released" ? (
-                      <PaymentPill status={r.paymentStatus} />
-                    ) : (
-                      <span className="text-xs text-slate-300">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    <button
-                      className="w-7 h-7 rounded-md hover:bg-slate-200/70 inline-flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label="View request"
+      <div className="bg-white rounded-xl border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
+        <div className="w-full">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60 sticky top-0 z-10">
+                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 sm:px-5 py-3">
+                  Reference
+                </th>
+                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 sm:px-5 py-3">
+                  Resident
+                </th>
+                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 sm:px-5 py-3 hidden md:table-cell">
+                  Certificate
+                </th>
+                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 sm:px-5 py-3 hidden xl:table-cell">
+                  Purpose
+                </th>
+                <th className="px-3 sm:px-5 py-3 hidden lg:table-cell">
+                  <button
+                    onClick={() =>
+                      setSort((s) => (s === "newest" ? "oldest" : "newest"))
+                    }
+                    className="group inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wide hover:text-slate-600 transition-colors focus-visible:outline-none"
+                  >
+                    Submitted
+                    <ArrowUpDown className="w-3 h-3 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                  </button>
+                </th>
+                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 sm:px-5 py-3 hidden lg:table-cell">
+                  Wished pickup
+                </th>
+                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 sm:px-5 py-3">
+                  Status
+                </th>
+                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-3 sm:px-5 py-3">
+                  Payment
+                </th>
+                <th className="px-3 sm:px-5 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {loading &&
+                Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} />)}
+              {!loading &&
+                paginated.map((r, i) => {
+                  const accent = STATUS_ACCENT[r.status] ?? "#CBD5E1";
+                  const isHovered = hoveredRow === r.id;
+                  return (
+                    <tr
+                      key={r.id}
+                      style={{
+                        animation: `rowIn 0.25s ease-out ${Math.min(i, 8) * 0.03}s both`,
+                        boxShadow: isHovered
+                          ? "inset 3px 0 0 0 var(--row-accent)"
+                          : "inset 2px 0 0 0 transparent",
+                        // @ts-ignore custom property for the inset accent above
+                        "--row-accent": accent,
+                      }}
+                      className="group border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-[background-color,box-shadow] duration-150 cursor-pointer active:bg-slate-100/70"
+                      onClick={() => setSelected(r)}
+                      onMouseEnter={() => setHoveredRow(r.id)}
+                      onMouseLeave={() => setHoveredRow(null)}
                     >
-                      <Eye className="w-3.5 h-3.5 text-slate-500" />
-                    </button>
+                      <td className="px-3 sm:px-5 py-3.5 text-xs font-bold text-slate-400 tabular-nums whitespace-nowrap">
+                        {r.referenceNo}
+                      </td>
+                      <td className="px-3 sm:px-5 py-3.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarTint(
+                              r.residentName,
+                            )}`}
+                          >
+                            {initials(r.residentName)}
+                          </span>
+                          <span className="font-semibold text-slate-800 truncate">
+                            {r.residentName ?? "Unknown"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-5 py-3.5 text-slate-500 hidden md:table-cell whitespace-nowrap">
+                        {r.serviceTitle}
+                      </td>
+                      <td className="px-3 sm:px-5 py-3.5 text-slate-500 hidden xl:table-cell max-w-[220px] truncate">
+                        {r.purpose}
+                      </td>
+                      <td className="px-3 sm:px-5 py-3.5 text-slate-400 text-xs hidden lg:table-cell whitespace-nowrap">
+                        {r.submitted}
+                      </td>
+                      <td className="px-3 sm:px-5 py-3.5 text-xs hidden lg:table-cell whitespace-nowrap">
+                        {r.isOverdue ? (
+                          <span className="inline-flex items-center gap-1 text-rose-600 font-semibold">
+                            <AlertTriangle className="w-3 h-3" />
+                            {formatDate(r.pickupDate)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">
+                            {formatDate(r.pickupDate)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 sm:px-5 py-3.5">
+                        <div className="inline-flex items-center gap-1.5">
+                          <StatusIcon status={r.status} />
+                          <StatusPill status={r.status} />
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-5 py-3.5">
+                        {r.status === "pending" || r.status === "released" ? (
+                          <PaymentPill status={r.paymentStatus} />
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 sm:px-5 py-3.5 text-right">
+                        <span className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0 transition-all duration-150">
+                          <button
+                            className="w-7 h-7 rounded-md hover:bg-slate-200/70 inline-flex items-center justify-center"
+                            aria-label="View request"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          </button>
+                          <ChevronRightIcon className="w-3.5 h-3.5 text-slate-300" />
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-5 py-16 text-center">
+                    <div className="inline-flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center">
+                        <Search className="w-4 h-4 text-slate-300" />
+                      </div>
+                      <p className="text-sm text-slate-400">
+                        No requests match your filters.
+                      </p>
+                      {(query ||
+                        statusFilter !== "all" ||
+                        typeFilter !== "all" ||
+                        overdueOnly) && (
+                        <button
+                          onClick={() => {
+                            setQuery("");
+                            setStatusFilter("all");
+                            setTypeFilter("all");
+                            setOverdueOnly(false);
+                          }}
+                          className="text-xs font-semibold text-[#B8860B] hover:underline mt-1"
+                        >
+                          Clear all filters
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
-              ))}
-            {!loading && filtered.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-5 py-16 text-center">
-                  <div className="inline-flex flex-col items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center">
-                      <Search className="w-4 h-4 text-slate-300" />
-                    </div>
-                    <p className="text-sm text-slate-400">
-                      No requests match your filters.
-                    </p>
-                    {(query ||
-                      statusFilter !== "all" ||
-                      typeFilter !== "all" ||
-                      overdueOnly) && (
-                      <button
-                        onClick={() => {
-                          setQuery("");
-                          setStatusFilter("all");
-                          setTypeFilter("all");
-                          setOverdueOnly(false);
-                        }}
-                        className="text-xs font-semibold text-[#B8860B] hover:underline mt-1"
-                      >
-                        Clear all filters
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -832,12 +927,16 @@ const RequestsPage = () => {
                           className={`text-sm font-bold ${
                             selected.paymentStatus === "paid"
                               ? "text-emerald-600"
-                              : "text-amber-600"
+                              : selected.paymentStatus === "free"
+                                ? "text-slate-500"
+                                : "text-amber-600"
                           }`}
                         >
                           {selected.paymentStatus === "paid"
                             ? "Paid"
-                            : "Unpaid"}
+                            : selected.paymentStatus === "free"
+                              ? "Free — no payment required"
+                              : "Unpaid"}
                         </p>
                       </div>
                     </div>
@@ -856,7 +955,7 @@ const RequestsPage = () => {
                   </div>
                   {selected.paymentLink &&
                     selected.paymentStatus === "unpaid" && (
-                      <a
+                      <Link
                         href={selected.paymentLink}
                         target="_blank"
                         rel="noreferrer"
@@ -864,7 +963,7 @@ const RequestsPage = () => {
                       >
                         View online payment link
                         <ArrowUpRight className="w-3 h-3" />
-                      </a>
+                      </Link>
                     )}
                 </div>
               )}

@@ -1,4 +1,3 @@
-// models/RequestModel.ts
 import { Schema, model, models, Types } from "mongoose";
 
 export interface IOverdueNotice {
@@ -17,15 +16,17 @@ export interface IRequest {
   purpose: string;
   stage: number;
   status: "submitted" | "pending" | "released" | "rejected";
-  paymentStatus: "unpaid" | "paid";
+  paymentStatus: "unpaid" | "paid" | "free";
   paymentLink?: string | null;
   paymongoLinkId?: string | null;
   paymentMethod?: "online" | "manual" | null;
   hitpayRequestId?: string | null;
-  // Date the resident chose to collect the certificate at the barangay hall.
+
+  saleInvoiceNumber?: string;
+  paidAt?: Date | null;
+
   pickupDate?: Date | null;
-  // Set whenever an admin flags the request as overdue past `pickupDate`.
-  // Drives both the email notice and the in-portal banner shown to the resident.
+
   overdueNotice: IOverdueNotice;
   createdAt: Date;
   updatedAt: Date;
@@ -52,20 +53,23 @@ const RequestSchema = new Schema<IRequest>(
     },
     paymentStatus: {
       type: String,
-      enum: ["unpaid", "paid"],
+      enum: ["unpaid", "paid", "free"],
       default: "unpaid",
     },
     paymentLink: { type: String, default: null },
     paymongoLinkId: { type: String, default: null, index: true },
 
-    // HitPay
     paymentMethod: { type: String, enum: ["online", "manual"], default: null },
     hitpayRequestId: { type: String, default: null },
 
-    // Resident-selected pickup date (set at submission time).
+    // No `default: null` here — the field stays entirely absent until the
+    // payment PATCH route sets it. Combined with the partial index below,
+    // this avoids the E11000 collision multiple undefined/null requests hit.
+    saleInvoiceNumber: { type: String },
+    paidAt: { type: Date, default: null },
+
     pickupDate: { type: Date, default: null },
 
-    // Overdue tracking — populated by PATCH /api/admin/requests/[id]/overdue
     overdueNotice: {
       notified: { type: Boolean, default: false },
       message: { type: String, default: null },
@@ -74,6 +78,17 @@ const RequestSchema = new Schema<IRequest>(
     },
   },
   { timestamps: true },
+);
+
+// Only enforce uniqueness among documents where saleInvoiceNumber is an
+// actual string — requests that never had one (free, or not yet paid)
+// are excluded entirely, so they can never collide with each other.
+RequestSchema.index(
+  { saleInvoiceNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { saleInvoiceNumber: { $type: "string" } },
+  },
 );
 
 export default models.Request || model<IRequest>("Request", RequestSchema);

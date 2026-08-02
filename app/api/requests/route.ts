@@ -2,8 +2,10 @@
 import { auth } from "@/auth";
 import { connection } from "@/lib/database";
 import { sendRequestConfirmationEmail } from "@/lib/mail/sendRequestConfirmation";
+import { isFreeFee } from "@/lib/payments/feeUtils";
 import RequestModel from "@/models/RequestModel";
 import ResidentProfileModel from "@/models/ResidentProfileModel";
+
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -14,12 +16,9 @@ const createSchema = z.object({
   category: z.string().min(2),
   fee: z.string().min(1),
   purpose: z.string().min(3),
-  // Resident-selected date for collecting the certificate.
   pickupDate: z.coerce.date(),
 });
 
-// A request counts as overdue once its pickup date has passed and it
-// hasn't been released (or rejected) yet.
 function computeIsOverdue(pickupDate: Date | null | undefined, status: string) {
   if (!pickupDate) return false;
   if (status === "released" || status === "rejected") return false;
@@ -64,6 +63,7 @@ export async function POST(req: NextRequest) {
       referenceNo,
       stage: 0,
       status: "submitted",
+      paymentStatus: isFreeFee(parsed.data.fee) ? "free" : "unpaid",
     });
 
     const submittedDate = created.createdAt.toISOString().split("T")[0];
@@ -83,8 +83,6 @@ export async function POST(req: NextRequest) {
           fee: created.fee,
           purpose: created.purpose,
           submittedDate,
-          // TODO: add `pickupDate?: string` to sendRequestConfirmationEmail's
-          // param type and template so the confirmation email shows it too.
           pickupDate: pickupDateLabel,
         } as Parameters<typeof sendRequestConfirmationEmail>[0]);
       } catch (mailErr) {
@@ -106,6 +104,7 @@ export async function POST(req: NextRequest) {
           purpose: created.purpose,
           stage: created.stage,
           status: created.status,
+          paymentStatus: created.paymentStatus,
           submitted: created.createdAt.toISOString().split("T")[0],
           pickupDate: created.pickupDate
             ? created.pickupDate.toISOString()
@@ -153,6 +152,7 @@ export async function GET() {
       purpose: r.purpose,
       stage: r.stage,
       status: r.status,
+      paymentStatus: r.paymentStatus,
       submitted: r.createdAt.toISOString().split("T")[0],
       pickupDate: r.pickupDate ? r.pickupDate.toISOString() : null,
       overdueNotice: r.overdueNotice ?? null,

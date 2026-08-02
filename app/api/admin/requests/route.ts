@@ -5,8 +5,6 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-// A request counts as overdue once its pickup date has passed and it
-// hasn't been released (or rejected) yet.
 function computeIsOverdue(pickupDate: Date | null | undefined, status: string) {
   if (!pickupDate) return false;
   if (status === "released" || status === "rejected") return false;

@@ -8,8 +8,8 @@ import type { RequestStatus } from "@/data";
 export type OverdueNotice = {
   notified: boolean;
   message: string | null;
-  revisedPickupDate: string | null; // ISO string
-  notifiedAt: string | null; // ISO string
+  revisedPickupDate: string | null;
+  notifiedAt: string | null;
 };
 
 export type RequestItem = {
@@ -20,14 +20,14 @@ export type RequestItem = {
   fee: string;
   purpose: string;
   stage: number;
-  status: RequestStatus; // "submitted" | "pending" | "released" | "rejected"
-  submitted: string; // "YYYY-MM-DD" per your API's toISOString().split("T")[0]
-  residentName?: string; // present on admin-scoped endpoint only
-  paymentStatus: "unpaid" | "paid";
+  status: RequestStatus;
+  submitted: string;
+  residentName?: string;
+  paymentStatus: "unpaid" | "paid" | "free";
   paymentLink?: string | null;
-  pickupDate?: string | null; // ISO string, resident-selected pickup date
+  pickupDate?: string | null;
   overdueNotice?: OverdueNotice | null;
-  isOverdue?: boolean; // present on admin-scoped endpoint (server-computed)
+  isOverdue?: boolean;
 };
 
 const fetcher = (url: string) =>
@@ -52,7 +52,6 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     mutate,
   } = useSWR<RequestItem[]>(endpoint, fetcher);
 
-  // `list` needs to exist before any function below closes over it.
   const list = requests ?? [];
   const today = startOfDay(new Date());
 
@@ -61,7 +60,7 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     category: string;
     fee: string;
     purpose: string;
-    pickupDate: string; // ISO string
+    pickupDate: string;
   }) => {
     try {
       const res = await axios.post("/api/requests", payload);
@@ -86,12 +85,10 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     try {
       const res = await axios.patch(`/api/admin/requests/${id}`, { status });
       const updated: RequestItem = res.data.request;
-      // optimistic local update, no revalidation...
       mutate(
         list.map((r) => (r.id === id ? updated : r)),
         false,
       );
-      // ...then re-fetch from the server to reconcile (e.g. stage, paymentLink)
       mutate();
       return updated;
     } catch (error) {
@@ -111,7 +108,7 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
       });
       const { paymentStatus: updated } = res.data as {
         id: string;
-        paymentStatus: "unpaid" | "paid";
+        paymentStatus: "unpaid" | "paid" | "free";
       };
       mutate(
         list.map((r) => (r.id === id ? { ...r, paymentStatus: updated } : r)),
@@ -128,9 +125,6 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     }
   };
 
-  // Admin action: flag a request overdue, email the resident an apology,
-  // and record the revised pickup date so it shows up in the resident
-  // portal too. Call from an admin table row action.
   const notifyOverdue = async (
     id: string,
     payload: { revisedPickupDate: string; message?: string },
@@ -175,9 +169,6 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     [list],
   );
 
-  // Requests whose pickup date has passed and haven't been released yet.
-  // Falls back to a client-side check for endpoints where the server
-  // hasn't computed `isOverdue` (kept in sync with the API's own logic).
   const overdueRequests = useMemo(
     () =>
       list.filter((r) => {
@@ -291,8 +282,8 @@ export function useRequests(scope: "mine" | "admin" = "mine") {
     recent,
     updateStatus,
     markPayment,
-    notifyOverdue, // NEW
-    overdueRequests, // NEW
-    overdueCount, // NEW
+    notifyOverdue,
+    overdueRequests,
+    overdueCount,
   };
 }

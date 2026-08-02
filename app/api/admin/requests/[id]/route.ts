@@ -107,8 +107,11 @@ export async function PATCH(
             console.error("Failed to create PayMongo link:", linkErr);
           }
         }
+        updates.paymentStatus = "unpaid";
+      } else {
+        // Free service — no PayMongo link needed, no payment step at all.
+        updates.paymentStatus = "free";
       }
-      updates.paymentStatus = "unpaid";
     }
 
     // NOTE: Mongoose uses `new`, not the native driver's `returnDocument`.
@@ -156,10 +159,15 @@ export async function PATCH(
     }
 
     // Only send the payment email if we actually have a usable link
-    // (either just generated, or already existing on the request).
+    // (either just generated, or already existing on the request) AND
+    // this isn't a free service.
     const effectivePaymentLink = generatedPaymentLink ?? updated.paymentLink;
 
-    if (parsed.data.status === "pending" && residentUser?.email) {
+    if (
+      parsed.data.status === "pending" &&
+      residentUser?.email &&
+      updated.paymentStatus !== "free"
+    ) {
       if (effectivePaymentLink) {
         const paymentInfoUrl = (extra: Record<string, string | undefined>) => {
           const params = new URLSearchParams();
@@ -186,12 +194,15 @@ export async function PATCH(
             console.error("Failed to send payment request email:", mailErr),
           );
       } else {
-        console.warn(
-          "Skipped payment email: no payment link available",
-          { referenceNo: updated.referenceNo, paymentLinkError },
-        );
+        console.warn("Skipped payment email: no payment link available", {
+          referenceNo: updated.referenceNo,
+          paymentLinkError,
+        });
       }
-    } else if (parsed.data.status === "pending") {
+    } else if (
+      parsed.data.status === "pending" &&
+      updated.paymentStatus !== "free"
+    ) {
       console.warn(
         "Skipped payment email: no residentUser.email found",
         residentUser,

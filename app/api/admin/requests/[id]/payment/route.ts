@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { connection } from "@/lib/database";
 import RequestModel from "@/models/RequestModel";
+import { markRequestPaidAndNotify } from "@/lib/payments/markRequestPaid";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -34,18 +35,25 @@ export async function PATCH(
 
     await connection();
 
-    const updated = await RequestModel.findByIdAndUpdate(
-      id,
-      { paymentStatus: parsed.data.paymentStatus },
-      { returnDocument: "after" }
-    );
+    const updated =
+      parsed.data.paymentStatus === "paid"
+        ? await markRequestPaidAndNotify({ _id: id })
+        : await RequestModel.findByIdAndUpdate(
+            id,
+            { paymentStatus: "unpaid" },
+            { returnDocument: "after" }
+          );
 
     if (!updated) {
       return NextResponse.json({ error: "Request not found." }, { status: 404 });
     }
 
     return NextResponse.json(
-      { id: updated._id.toString(), paymentStatus: updated.paymentStatus },
+      {
+        id: updated._id.toString(),
+        paymentStatus: updated.paymentStatus,
+        saleInvoiceNumber: updated.saleInvoiceNumber ?? null,
+      },
       { status: 200 }
     );
   } catch (error) {
