@@ -10,7 +10,7 @@ const page = () => {
   return (
     <AuthShell
       formNumber="FORM NO. LGU-01-A"
-      eyebrow="Sign In"
+      eyebrow="Sign Up"
       title="Sign Up as a resident"
       subtitle="Sign up to gets you access to every barangay San Isidro Services"
       footer={

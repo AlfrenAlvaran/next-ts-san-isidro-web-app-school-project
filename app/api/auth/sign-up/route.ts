@@ -7,6 +7,18 @@ import crypto from "crypto";
 import { sendVerificationEmail } from "@/lib/sendVerificationEmail";
 export const runtime = "nodejs";
 
+const uploadToCloudinary = (buffer: Buffer, folder: string) =>
+  new Promise<{ secure_url: string }>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: "auto" },
+      (error, result) => {
+        if (error || !result) return reject(error);
+        resolve(result as { secure_url: string });
+      },
+    );
+    stream.end(buffer);
+  });
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
@@ -40,6 +52,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const selfieFile = form.get("selfieFile") as File | null;
+    if (!selfieFile) {
+      return NextResponse.json(
+        { error: "A selfie is required." },
+        { status: 400 },
+      );
+    }
+
     await connection();
 
     const existing = await UserModel.findOne({
@@ -60,21 +80,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const [idBytes, selfieBytes] = await Promise.all([
+      file.arrayBuffer(),
+      selfieFile.arrayBuffer(),
+    ]);
 
-    const uploadResult = await new Promise<{ secure_url: string }>(
-      (resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "san-isidro/ids", resource_type: "auto" },
-          (error, result) => {
-            if (error || !result) return reject(error);
-            resolve(result as { secure_url: string });
-          },
-        );
-        stream.end(buffer);
-      },
-    );
+    const [uploadResult, selfieUploadResult] = await Promise.all([
+      uploadToCloudinary(Buffer.from(idBytes), "san-isidro/ids"),
+      uploadToCloudinary(Buffer.from(selfieBytes), "san-isidro/selfies"),
+    ]);
 
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -85,6 +99,7 @@ export async function POST(req: NextRequest) {
       password,
       phone,
       documentUrl: uploadResult.secure_url,
+      avatarUrl: selfieUploadResult.secure_url,
       verificationToken,
       verificationTokenExpiry,
     });
