@@ -300,8 +300,11 @@ const AuthForm = ({ type }: { type: string }) => {
         };
 
         if (result?.error) {
+          const errorCode = (result as any).code ?? result.error;
+          console.log("errorCode:", errorCode);
+          console.log("AUTH_ERROR_MESSAGES keys:", AUTH_ERROR_MESSAGES);
           toast.error(
-            AUTH_ERROR_MESSAGES[result.error as AuthErrorCode] ??
+            AUTH_ERROR_MESSAGES[errorCode as AuthErrorCode] ??
               "Something went wrong. Please try again.",
           );
           return;
@@ -434,7 +437,10 @@ const AuthForm = ({ type }: { type: string }) => {
 
       {type === "sign-up" && (
         <div>
-          <label htmlFor="Upload ID" className="text-sm font-medium text-slate-700">
+          <label
+            htmlFor="Upload ID"
+            className="text-sm font-medium text-slate-700"
+          >
             Valid ID (photo or document) showing your address
           </label>
 
@@ -499,7 +505,10 @@ const AuthForm = ({ type }: { type: string }) => {
 
       {type === "sign-up" && (
         <div>
-          <label htmlFor="Upload Selfie" className="text-sm font-medium text-slate-700">
+          <label
+            htmlFor="Upload Selfie"
+            className="text-sm font-medium text-slate-700"
+          >
             Take a selfie
           </label>
 

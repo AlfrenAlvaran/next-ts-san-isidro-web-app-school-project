@@ -7,8 +7,8 @@ import UserModel from "./models/UserModel";
 import { AUTH_ERROR_CODES } from "./constant";
 
 class UnverifiedError extends CredentialsSignin {
-  code = AUTH_ERROR_CODES.UNAPPROVED;
-  static type = AUTH_ERROR_CODES.UNAPPROVED;
+  code = AUTH_ERROR_CODES.UNVERIFIED;
+  static type = AUTH_ERROR_CODES.UNVERIFIED;
 }
 
 class UnapprovedError extends CredentialsSignin {
